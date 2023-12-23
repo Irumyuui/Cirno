@@ -1,0 +1,53 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Cirno/1.0.0": {
+        "dependencies": {
+          "LLVMSharp.Interop": "16.0.0",
+          "libLLVM": "16.0.6"
+        },
+        "runtime": {
+          "Cirno.dll": {}
+        }
+      },
+      "libLLVM/16.0.6": {},
+      "LLVMSharp.Interop/16.0.0": {
+        "dependencies": {
+          "libLLVM": "16.0.6"
+        },
+        "runtime": {
+          "lib/net7.0/LLVMSharp.Interop.dll": {
+            "assemblyVersion": "16.0.0.0",
+            "fileVersion": "16.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Cirno/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "libLLVM/16.0.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ZlIpwHUVzNb9jeSzu6NQYKiVeiXRQuNzpx/zZNw4tCbAqUPWmZ8Dj8WL2IX7BenuT1fTBdbsPsYz23PBxGxIkA==",
+      "path": "libllvm/16.0.6",
+      "hashPath": "libllvm.16.0.6.nupkg.sha512"
+    },
+    "LLVMSharp.Interop/16.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-kzAGP489ixPUk0vcuS/100DZniGL23rpdBF2E5YBvl1P9KKOgdlcV11IjP/fU2GdMvte8teBcdhEU/NovsPjdA==",
+      "path": "llvmsharp.interop/16.0.0",
+      "hashPath": "llvmsharp.interop.16.0.0.nupkg.sha512"
+    }
+  }
+}
