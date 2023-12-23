@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Cirno")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+92be8486edd00365404d44b811c47278e9bb567a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+036d0b3952f0886ca308d2904b490e06107b9f7d")]
 [assembly: System.Reflection.AssemblyProductAttribute("Cirno")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Cirno")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
