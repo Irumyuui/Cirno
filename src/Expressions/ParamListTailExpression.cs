@@ -1,0 +1,19 @@
+﻿using System.Collections.Generic;
+using Cirno.Lexer;
+
+namespace Cirno.Expressions;
+
+public sealed class ParamListTailExpression(ExpressionNode param, ExpressionNode? paramListTail) : ExpressionNode
+{
+    public ExpressionNode Param { get; } = param;
+    public ExpressionNode? ParamListTail { get; } = paramListTail;
+
+    public override SyntaxKind Kind => SyntaxKind.ParamListTailExpression;
+
+    public override IEnumerable<ExpressionNode> GetChildren()
+    {
+        yield return Param;
+        if (ParamListTail is not null)
+            yield return ParamListTail;
+    }
+}
