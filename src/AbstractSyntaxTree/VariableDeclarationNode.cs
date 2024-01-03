@@ -38,7 +38,7 @@ public sealed class VariableDeclarationNode : DeclarationNode
 
     public bool IsArrayType() => Type is LiteralType.IntPtr;
 
-    public override void PrettyPrint()
+    protected override void PrettyPrint()
     {
         var prevColor = Console.ForegroundColor;
 

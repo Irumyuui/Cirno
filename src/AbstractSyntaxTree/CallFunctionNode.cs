@@ -29,7 +29,8 @@ public sealed class CallFunctionNode : ExprNode
         foreach (var item in Args)
             yield return item;
     }
-    public override void PrettyPrint()
+
+    protected override void PrettyPrint()
     {
         Console.Write($"{NodeType}");
         var prevColor = Console.ForegroundColor;

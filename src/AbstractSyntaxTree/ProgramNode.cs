@@ -26,7 +26,7 @@ public sealed class ProgramNode : ASTNode
             yield return item;
     }
 
-    public override void PrettyPrint()
+    protected override void PrettyPrint()
     {
         Console.Write($"{NodeType}");
         var prevColor = Console.ForegroundColor;

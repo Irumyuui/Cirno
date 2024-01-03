@@ -40,7 +40,7 @@ public sealed class FunctionDeclarationNode : DeclarationNode
         yield return Body;
     }
 
-    public override void PrettyPrint()
+    protected override void PrettyPrint()
     {
         Console.Write($"{NodeType}");
         var prevColor = Console.ForegroundColor;

@@ -35,7 +35,7 @@ public sealed class BinaryOperatorNode : ExprNode
             yield return Right;
     }
 
-    public override void PrettyPrint()
+    protected override void PrettyPrint()
     {
         Console.Write($"{NodeType}");
         var prevColor = Console.ForegroundColor;

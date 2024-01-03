@@ -24,7 +24,7 @@ public sealed class IntegerLiteral<TValue> : LiteralNode
         return Enumerable.Empty<ASTNode>();
     }
 
-    public override void PrettyPrint()
+    protected override void PrettyPrint()
     {
         var prevColor = Console.ForegroundColor;
 

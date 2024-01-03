@@ -25,7 +25,7 @@ public class LiteralNode : ExprNode
         yield break;
     }
 
-    public override void PrettyPrint()
+    protected override void PrettyPrint()
     {
         var prevColor = Console.ForegroundColor;
 
