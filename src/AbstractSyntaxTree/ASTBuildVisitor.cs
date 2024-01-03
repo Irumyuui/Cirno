@@ -527,7 +527,7 @@ internal sealed class ASTBuildVisitor
 
     private static void VisitVariable(in VariableExpression expr, out ExprNode node)
     {
-        if (expr.IsArrayRef && expr.OffsetExpr is not null)
+        if (expr is { IsArrayRef: true, OffsetExpr: not null })
         {
             VisitBinaryExpression(expr.OffsetExpr, out var exprNode);
             node = new ArraySubscriptExprNode(expr.Identifier.GetTextPosition(), null, expr.Identifier.Name, exprNode);
