@@ -5,7 +5,7 @@ using Cirno.Lexer;
 
 namespace Cirno.AbstractSyntaxTree;
 
-internal sealed class ASTBuildVisitor
+internal sealed class ASTBuilder
 {
     internal static void VisitProgram(in ExpressionNode exprNode, out ASTNode astNode)
     {

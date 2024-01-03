@@ -4,7 +4,7 @@ public sealed class AST
 {
     public AST(Cirno.Expressions.ExpressionTree tree)
     {
-        ASTBuildVisitor.VisitProgram(tree.Root, out var root);
+        ASTBuilder.VisitProgram(tree.Root, out var root);
         Root = root;
     }
 
