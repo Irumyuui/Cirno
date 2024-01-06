@@ -3,17 +3,26 @@ using Cirno.Diagnostic;
 
 namespace Cirno.Lexer;
 
-public sealed class Lexer(in string[] texts, Cirno.Diagnostic.DiagnosticList diagnosticList)
+public sealed class Lexer
 {
-    private string[] Texts { get; } = texts;
+    private string[] Texts { get; }
 
     private int _line = 0;
-
+    
     private int _pos = 0;
 
     private (int Line, int Pos) Position => (_line, _pos);
     
     private readonly StringBuilder _builder = new();
+    
+    private readonly Cirno.Diagnostic.DiagnosticList _diagnosticList;
+
+    public Lexer(in string[] texts, Cirno.Diagnostic.DiagnosticList diagnosticList)
+    {
+        _diagnosticList = diagnosticList;
+        Texts = texts;
+        Diagnostics = diagnosticList;
+    }
 
     private char Current {
         get {
@@ -23,7 +32,7 @@ public sealed class Lexer(in string[] texts, Cirno.Diagnostic.DiagnosticList dia
         }
     }
 
-    public DiagnosticList Diagnostics { get; } = diagnosticList;
+    public DiagnosticList Diagnostics { get; }
 
     private void MoveNextPosition() {
         if (_line >= Texts.Length)
@@ -58,7 +67,7 @@ public sealed class Lexer(in string[] texts, Cirno.Diagnostic.DiagnosticList dia
             MoveNextPosition();
 
             // Diagnostic.DiagnosticHelper.Raise($"Unknown token {utext} in [{_line}:{_pos}].");
-            diagnosticList.ReportLexerError(new TextLocation(_line, _pos), SyntaxKind.Unknown, utext);
+            _diagnosticList.ReportLexerError(new TextLocation(_line, _pos), SyntaxKind.Unknown, utext);
             return new SyntaxToken(SyntaxKind.Unknown, utext, _line, _pos);
         }
 
@@ -92,7 +101,7 @@ public sealed class Lexer(in string[] texts, Cirno.Diagnostic.DiagnosticList dia
                 // Diagnostic.DiagnosticHelper.Raise(
                 //     $"Unexpected token {text} in [{_line}:{_pos}], except constant interger."
                 // );
-                diagnosticList.ReportLexerError(new TextLocation(_line, _pos), SyntaxKind.Number, text);
+                _diagnosticList.ReportLexerError(new TextLocation(_line, _pos), SyntaxKind.Number, text);
                 return new SyntaxToken(SyntaxKind.Unknown, text, _line, _pos);
             default:
                 return new SyntaxToken(kind, text, _line, _pos);
