@@ -6,7 +6,7 @@ using Cirno.Parser;
 
 string[] lines =
 [
-    "int x[];",
+    "int x[1];",
      "int minloc(int a[], int low, int high) {",
      "    int i; int k;",
      "    k = low; x = a[low];",
