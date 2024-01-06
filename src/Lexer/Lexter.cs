@@ -1,8 +1,9 @@
 using System.Text;
+using Cirno.Diagnostic;
 
 namespace Cirno.Lexer;
 
-public sealed class Lexer(in string[] texts)
+public sealed class Lexer(in string[] texts, Cirno.Diagnostic.DiagnosticList diagnosticList)
 {
     private string[] Texts { get; } = texts;
 
@@ -21,6 +22,8 @@ public sealed class Lexer(in string[] texts)
             return Texts[Position.Line][Position.Pos];
         }
     }
+
+    public DiagnosticList Diagnostics { get; } = diagnosticList;
 
     private void MoveNextPosition() {
         if (_line >= Texts.Length)
@@ -54,7 +57,8 @@ public sealed class Lexer(in string[] texts)
             var utext = Current.ToString();
             MoveNextPosition();
 
-            Diagnostic.DiagnosticHelper.Raise($"Unknown token {utext} in [{_line}:{_pos}].");
+            // Diagnostic.DiagnosticHelper.Raise($"Unknown token {utext} in [{_line}:{_pos}].");
+            diagnosticList.ReportLexerError(new TextLocation(_line, _pos), SyntaxKind.Unknown, utext);
             return new SyntaxToken(SyntaxKind.Unknown, utext, _line, _pos);
         }
 
@@ -85,9 +89,10 @@ public sealed class Lexer(in string[] texts)
             case SyntaxKind.Number when int.TryParse(text, out var result):
                 return new SyntaxTokenWithValue<int>(SyntaxKind.Number, text, _line, _pos, result);
             case SyntaxKind.Number:
-                Diagnostic.DiagnosticHelper.Raise(
-                    $"Unexpected token {text} in [{_line}:{_pos}], except constant interger."
-                );
+                // Diagnostic.DiagnosticHelper.Raise(
+                //     $"Unexpected token {text} in [{_line}:{_pos}], except constant interger."
+                // );
+                diagnosticList.ReportLexerError(new TextLocation(_line, _pos), SyntaxKind.Number, text);
                 return new SyntaxToken(SyntaxKind.Unknown, text, _line, _pos);
             default:
                 return new SyntaxToken(kind, text, _line, _pos);

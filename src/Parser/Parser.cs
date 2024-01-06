@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Cirno.Diagnostic;
 using Cirno.Expressions;
 using Cirno.Lexer;
 
@@ -7,7 +8,7 @@ namespace Cirno.Parser;
 public class Parser
 {
     public Parser(string[] texts) {
-        var lexer = new Lexer.Lexer(texts);
+        var lexer = new Lexer.Lexer(texts, new DiagnosticList(text: texts));
 
         SyntaxToken curToken;
         List<SyntaxToken> tokenList = [];
