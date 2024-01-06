@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Cirno.Diagnostic;
+using Cirno.DiagnosticTools;
 using Cirno.Expressions;
 using Cirno.Lexer;
 
@@ -8,8 +8,8 @@ namespace Cirno.Parser;
 public class Parser
 {
     public Parser(string[] texts) {
-        var lexer = new Lexer.Lexer(texts, new DiagnosticList(text: texts));
-
+        var lexer = new Lexer.Lexer(texts);
+        
         SyntaxToken curToken;
         List<SyntaxToken> tokenList = [];
 
@@ -21,8 +21,18 @@ public class Parser
         } while (curToken.Kind is not SyntaxKind.EndOfFile);
 
         _tokens = [.. tokenList];
+        _diagnostics = new DiagnosticList(lexer.Diagnostics);
     }
 
+    public Parser(IEnumerable<SyntaxToken> tokens, IEnumerable<Cirno.DiagnosticTools.Diagnostic> diagnostics)
+    {
+        _tokens = [..tokens];
+        _diagnostics = new DiagnosticList(diagnostics);
+    }
+
+    private readonly Cirno.DiagnosticTools.DiagnosticList _diagnostics;
+    public Cirno.DiagnosticTools.DiagnosticList Diagnostics => _diagnostics;
+    
     private readonly SyntaxToken[] _tokens;
 
     private int _position;
@@ -58,15 +68,20 @@ public class Parser
             return NextToken();
         }
 
-        Cirno.Diagnostic.DiagnosticHelper.Raise($"Unexpected token {Current}, expected kind {kind}.");
+        _diagnostics.ReportParserError(new(Current.Line, Current.Position), kind, Current);
+        // Cirno.DiagnosticTools.DiagnosticHelper.Raise($"Unexpected token {Current}, expected kind {kind}.");
 
-        return kind is not SyntaxKind.Type ? new SyntaxToken(kind, Current.Name, Current.Line, Current.Position) : new SyntaxToken(SyntaxKind.Void, Current.Name, Current.Line, Current.Position);
+        return kind is not SyntaxKind.Type ? new SyntaxToken(kind, Current.Name, Current.Line, Current.Position) 
+                                : new SyntaxToken(SyntaxKind.Void, Current.Name, Current.Line, Current.Position);
     }
 
     public ExpressionTree Parse() {
         var root = ParseProgram();
-        if (!Current.IsEndOfFileToken()) 
-            Diagnostic.DiagnosticHelper.Raise("Code ends early.");
+        if (!Current.IsEndOfFileToken())
+        {
+            _diagnostics.Report(new TextLocation(Current.Line, Current.Position), DiagnosticKind.ParseError, "Code ends early.");
+        } 
+            // DiagnosticTools.DiagnosticHelper.Raise("Code ends early.");
         return new ExpressionTree(root);
     }
 

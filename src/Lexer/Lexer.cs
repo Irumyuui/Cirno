@@ -1,5 +1,5 @@
 using System.Text;
-using Cirno.Diagnostic;
+using Cirno.DiagnosticTools;
 
 namespace Cirno.Lexer;
 
@@ -15,13 +15,12 @@ public sealed class Lexer
     
     private readonly StringBuilder _builder = new();
     
-    private readonly Cirno.Diagnostic.DiagnosticList _diagnosticList;
+    private readonly Cirno.DiagnosticTools.DiagnosticList _diagnosticList;
 
-    public Lexer(in string[] texts, Cirno.Diagnostic.DiagnosticList diagnosticList)
+    public Lexer(in string[] texts)
     {
-        _diagnosticList = diagnosticList;
+        _diagnosticList = new DiagnosticList();
         Texts = texts;
-        Diagnostics = diagnosticList;
     }
 
     private char Current {
@@ -32,7 +31,7 @@ public sealed class Lexer
         }
     }
 
-    public DiagnosticList Diagnostics { get; }
+    public DiagnosticList Diagnostics => _diagnosticList;
 
     private void MoveNextPosition() {
         if (_line >= Texts.Length)
@@ -66,7 +65,7 @@ public sealed class Lexer
             var utext = Current.ToString();
             MoveNextPosition();
 
-            // Diagnostic.DiagnosticHelper.Raise($"Unknown token {utext} in [{_line}:{_pos}].");
+            // DiagnosticTools.DiagnosticHelper.Raise($"Unknown token {utext} in [{_line}:{_pos}].");
             _diagnosticList.ReportLexerError(new TextLocation(_line, _pos), SyntaxKind.Unknown, utext);
             return new SyntaxToken(SyntaxKind.Unknown, utext, _line, _pos);
         }
@@ -98,7 +97,7 @@ public sealed class Lexer
             case SyntaxKind.Number when int.TryParse(text, out var result):
                 return new SyntaxTokenWithValue<int>(SyntaxKind.Number, text, _line, _pos, result);
             case SyntaxKind.Number:
-                // Diagnostic.DiagnosticHelper.Raise(
+                // DiagnosticTools.DiagnosticHelper.Raise(
                 //     $"Unexpected token {text} in [{_line}:{_pos}], except constant interger."
                 // );
                 _diagnosticList.ReportLexerError(new TextLocation(_line, _pos), SyntaxKind.Number, text);
@@ -106,5 +105,28 @@ public sealed class Lexer
             default:
                 return new SyntaxToken(kind, text, _line, _pos);
         }
+    }
+
+    public void Reset()
+    {
+        _line = _pos = 0;
+    }
+    
+    public SyntaxToken[] GetTokens()
+    {
+        Reset();
+        SyntaxToken currentToken;
+        System.Collections.Generic.List<SyntaxToken> tokenList = [];
+        do
+        {
+            currentToken = NextToken();
+            if (currentToken.Kind is not SyntaxKind.Unknown
+                and not SyntaxKind.CommentsEnd)
+            {
+                tokenList.Add(currentToken);
+            }
+        } while (currentToken.Kind is not SyntaxKind.EndOfFile);
+
+        return tokenList.ToArray();
     }
 }

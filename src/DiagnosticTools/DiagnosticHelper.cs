@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace Cirno.Diagnostic;
+namespace Cirno.DiagnosticTools;
 
 internal static class DiagnosticHelper
 {

@@ -11,5 +11,5 @@ public sealed class ExpressionTree {
 
     public ExpressionNode Root { get; private set; }
 
-    public void PrettyPrint() => ExpressionNode.PrettyPrint(Root);
+    public void Dump() => ExpressionNode.PrettyPrint(Root);
 }

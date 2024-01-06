@@ -1,7 +1,8 @@
+using System;
 using System.Collections;
 using Cirno.Lexer;
 
-namespace Cirno.Diagnostic;
+namespace Cirno.DiagnosticTools;
 
 public readonly record struct TextLocation(int Line, int Col)
 {
@@ -11,7 +12,7 @@ public readonly record struct TextLocation(int Line, int Col)
 public enum DiagnosticKind
 {
     LexerError,
-    ParserError,
+    ParseError,
     SemanticError,
     EmitError,
 }
@@ -31,25 +32,27 @@ public sealed class DiagnosticList : System.Collections.Generic.IEnumerable<Diag
 {
     private readonly System.Collections.Generic.List<Diagnostic> _diagnostics;
 
-    private readonly string[] _text;
+    // private readonly string[] _text;
     
     public DiagnosticList(in DiagnosticList list)
     {
         _diagnostics = [..list._diagnostics];
-        _text = list._text;
+        // _text = list._text;
     }
 
-    public DiagnosticList(System.Collections.Generic.IEnumerable<Diagnostic> diagnostics, in string[] text)
+    public DiagnosticList(System.Collections.Generic.IEnumerable<Diagnostic> diagnostics)
     {
         _diagnostics = [..diagnostics];
-        _text = text;
+        // _text = text;
     }
 
-    public DiagnosticList(in string[] text)
-    {
-        _diagnostics = [];
-        _text = text;
-    }
+    public DiagnosticList() => _diagnostics = [];
+
+    // public DiagnosticList(in string[] text)
+    // {
+    //     _diagnostics = [];
+    //     // _text = text;
+    // }
 
     public int Count => _diagnostics.Count;
 
@@ -70,5 +73,20 @@ public sealed class DiagnosticList : System.Collections.Generic.IEnumerable<Diag
     public void ReportLexerError(in TextLocation location, SyntaxKind expectTokenKind, in SyntaxToken currentToken)
     {
         ReportLexerError(location, expectTokenKind, currentToken.Name);    
+    }
+
+    public void ReportParserError(in TextLocation location, SyntaxKind expectTokenKind, in SyntaxToken currentToken)
+    {
+        var reportMessage = $"Expect {expectTokenKind}, found {currentToken}.";
+        Report(location, DiagnosticKind.ParseError, reportMessage);
+        
+    }
+    
+    public static void PrintDiagnostics(System.Collections.Generic.IEnumerable<Diagnostic> diagnostics)
+    {
+        foreach (var diagnostic in diagnostics)
+        {
+            Console.WriteLine(diagnostics);
+        }
     }
 }

@@ -30,7 +30,7 @@ public sealed class ArraySubscriptExprNode : LiteralNode
         yield return OffsetExpr;
     }
 
-    // public override void PrettyPrint() {
+    // public override void Dump() {
     //     Console.Write($"{NodeType}");
     //     var prevColor = Console.ForegroundColor;
 

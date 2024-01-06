@@ -20,7 +20,7 @@ namespace Cirno.AbstractSyntaxTreeVisitor;
 public static class ASTChecker
 {
     private static void RaiseError(in (int Line, int Col) textPosition, string? message) {
-        Diagnostic.DiagnosticHelper.Raise($"[Line: {textPosition.Line}; Col: {textPosition.Col}] {message}");
+        DiagnosticTools.DiagnosticHelper.Raise($"[Line: {textPosition.Line}; Col: {textPosition.Col}] {message}");
     }
 
     public static bool Check(in ProgramNode root) {

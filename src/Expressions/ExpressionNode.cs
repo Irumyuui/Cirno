@@ -18,8 +18,8 @@ public abstract class ExpressionNode {
 
     public abstract IEnumerable<ExpressionNode> GetChildren();
 
-    // public static void PrettyPrint(ExpressionNode node) {
-    //     PrettyPrint(node);
+    // public static void Dump(ExpressionNode node) {
+    //     Dump(node);
     // }
 
     public static void PrettyPrint(ExpressionNode node, string indent = "", bool isLast = true)
