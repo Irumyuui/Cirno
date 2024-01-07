@@ -1,50 +1,66 @@
 using System.Collections.Immutable;
+using System.Diagnostics.SymbolStore;
 using Cirno.AbstractSyntaxTree;
+using Cirno.Lexer;
+using LLVMSharp.Interop;
 
 namespace Cirno.SyntaxSymbol;
 
-public class Symbol(in (int Line, int Col) position, LiteralType symbolType)
+public enum ValueTypeKind
 {
-    // Value = value;
-    // ValueRef = valueRef;
-
-    public (int Line, int Col) Position { get; } = position;
-
-    public LiteralType SymbolType { get; set; } = symbolType;
-
-    public LLVMSharp.Interop.LLVMValueRef? ValueRef { get; set; } = null;
-
-    // public object? Value { get; set; } = null;
-
-    public string GetTextPositionString() => $"[Line: {Position.Line}; Col: {Position.Col}]";
+    Int,
+    Void,
+    Function,
+    IntArray,
 }
 
-public sealed class SymbolWithIntValue(in (int Line, int Col) position, LiteralType symbolType, in int? value = null)
-    : Symbol(position, symbolType)
+public interface ISymbol
 {
-    public int? Value { get; } = value;
+    SyntaxToken Token { get; }
+    string Name { get; }
+    LLVMSharp.Interop.LLVMValueRef Value { get; set; }
+    LLVMSharp.Interop.LLVMTypeRef Type { get; set; }
+    ValueTypeKind TypeKind { get; }
 }
 
-public sealed class FunctionSymbol(
-    in (int Line, int Col) position,
-    LiteralType symbolType,
-    ImmutableArray<LiteralType> functionType,
-    ImmutableArray<(string Name, LiteralType Type)> parameters)
-    : Symbol(position, symbolType)
+public struct FunctionSymbol : ISymbol
 {
-    public ImmutableArray<LiteralType> FunctionType { get; private set; } = functionType;
+    public SyntaxToken Token { get; }
+    public string Name { get; }
+    public LLVMValueRef Value { get; set; }
+    public LLVMTypeRef Type { get; set; }
 
-    public ImmutableArray<(string Name, LiteralType Type)> Parameters { get; private set; } = parameters;
+    public ValueTypeKind TypeKind => ValueTypeKind.Function;
+    public LLVMValueRef[] Params => Value.Params;
+
+    public FunctionSymbol(SyntaxToken token, string name, LLVMValueRef value, LLVMTypeRef type)
+    {
+        Token = token;
+        Name = name;
+        Value = value;
+        Type = type;
+        // TypeKind = typeKind;
+    }
 }
 
-// public class Symbol<TValue> : Symbol
-// {    
-//     public Symbol(in (int Line, int Col) position, LiteralType symbolType, TValue? value) : base(position, symbolType) {
-//         Value = value;
-//     }
+public struct ValueSymbol : ISymbol
+{
+    public SyntaxToken Token { get; }
+    public string Name { get; }
+    public LLVMValueRef Value { get; set; }
+    public LLVMTypeRef Type { get; set; }
+    
+    public ValueTypeKind TypeKind { get; }
 
-//     public TValue? Value { get; set; }
-// }
+    public ValueSymbol(SyntaxToken token, string name, LLVMValueRef value, LLVMTypeRef type, ValueTypeKind typeKind)
+    {
+        Token = token;
+        Name = name;
+        Value = value;
+        Type = type;
+        TypeKind = typeKind;
+    }
+}
 
 public sealed class EnvSymbolTable
 {
@@ -52,19 +68,20 @@ public sealed class EnvSymbolTable
         PrevTable = prevTable;
     }
 
-    private System.Collections.Generic.Dictionary<string, Symbol> SymbolTable { get; set; } = [];
+    private System.Collections.Generic.Dictionary<string, ISymbol> SymbolTable { get; set; } = [];
 
     public EnvSymbolTable? PrevTable { get; private set; } = null;
 
-    public void Add(string key, Symbol value) => SymbolTable.Add(key, value);
+    public void Add(string key, ISymbol value) => SymbolTable.Add(key, value);
 
-    public bool TryAdd(string key, Symbol value) => SymbolTable.TryAdd(key, value);
+    public bool TryAdd(string key, ISymbol value) => SymbolTable.TryAdd(key, value);
 
     public bool ContainsKey(string key) => SymbolTable.ContainsKey(key);
 
-    public bool TryGetSymbolFromCurrentTable(string key, out Symbol? value) => SymbolTable.TryGetValue(key, out value);
+    public bool TryGetSymbolFromCurrentTable(string key, out ISymbol? value)
+        => SymbolTable.TryGetValue(key, out value);
 
-    public bool TryGetSymbolFromLinkTable(string key, out Symbol? value) {
+    public bool TryGetSymbolFromLinkTable(string key, out ISymbol? value) {
         for (var table = this; table is not null; table = table.PrevTable) {
             if (table.TryGetSymbolFromCurrentTable(key, out value))
                 return true;

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cirno.CodeGen;
+using LLVMSharp.Interop;
 
 namespace Cirno.AbstractSyntaxTree;
 
@@ -42,4 +44,8 @@ public sealed class IntegerLiteral<TValue> : LiteralNode
 
         Console.ForegroundColor = prevColor;
     }
+    
+    public override LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
+        LLVMBasicBlockRef? exitBasicBlock)
+        => visitor.Visit(this, entryBasicBlock, entryBasicBlock);
 }

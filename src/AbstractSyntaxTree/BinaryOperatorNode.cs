@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using Cirno.CodeGen;
+using LLVMSharp.Interop;
 
 namespace Cirno.AbstractSyntaxTree;
 
-public sealed class BinaryOperatorNode : ExprNode
+public sealed class BinaryOperatorNode : ExprNode, ICodeGenVisitable
 {
     public BinaryOperatorNode(in (int Line, int Col) position, ASTNode? parent, string name, ExprNode left, BinaryOperatorKind? opKind, ExprNode? right)
     {
@@ -51,4 +53,8 @@ public sealed class BinaryOperatorNode : ExprNode
 
         Console.ForegroundColor = prevColor;
     }
+    
+    public override LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
+        LLVMBasicBlockRef? exitBasicBlock)
+        => visitor.Visit(this, entryBasicBlock, entryBasicBlock);
 }

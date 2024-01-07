@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Cirno.CodeGen;
+using LLVMSharp.Interop;
 
 namespace Cirno.AbstractSyntaxTree;
 
@@ -29,4 +31,8 @@ public sealed class CompoundStatementNode : ASTNode
         foreach (var nex in ExpressionStatement)
             yield return nex;
     }
+    
+    public override LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
+        LLVMBasicBlockRef? exitBasicBlock)
+        => visitor.Visit(this, entryBasicBlock, entryBasicBlock);
 }

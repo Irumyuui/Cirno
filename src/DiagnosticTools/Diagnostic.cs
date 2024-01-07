@@ -1,12 +1,16 @@
 using System;
 using System.Collections;
+using System.Diagnostics.SymbolStore;
 using Cirno.Lexer;
+using Cirno.SyntaxSymbol;
 
 namespace Cirno.DiagnosticTools;
 
 public readonly record struct TextLocation(int Line, int Col)
 {
     public override string ToString() => $"[{Line}:{Col}]";
+
+    public static TextLocation NoPosition => new TextLocation(-1, -1);
 }
 
 public enum DiagnosticKind
@@ -14,7 +18,7 @@ public enum DiagnosticKind
     LexerError,
     ParseError,
     SemanticError,
-    EmitError,
+    CodeGenError,
 }
 
 public readonly record struct Diagnostic(
@@ -80,6 +84,44 @@ public sealed class DiagnosticList : System.Collections.Generic.IEnumerable<Diag
         var reportMessage = $"Expect {expectTokenKind}, found {currentToken}.";
         Report(location, DiagnosticKind.ParseError, reportMessage);
         
+    }
+
+    public void ReportSemanticError(in TextLocation location, string message)
+    {
+        Report(location, DiagnosticKind.SemanticError, message);
+    }
+
+    public void ReportCallFunctionArgsNotFullError(in TextLocation location, string funcName, int argc)
+    {
+        ReportSemanticError(location,
+            $"Calling function {funcName} requires {argc} parameters.");
+    }
+    
+    public void ReportUnknownValueTypeError(in TextLocation location)
+    {
+        Report(location, DiagnosticKind.SemanticError, "Unknown value type.");
+    }
+    
+    public void ReportUndefinedVariableError(in TextLocation location, string expectVariableName)
+    {
+        Report(location, DiagnosticKind.SemanticError, $"Undefined variable {expectVariableName}");
+    }
+
+    public void ReportNotExpectType(in TextLocation location, string variableName, ValueTypeKind expectType, ValueTypeKind foundType)
+    {
+        Report(location, DiagnosticKind.SemanticError, $"Expect type {expectType}, but found type {foundType} on variable {variableName}.");
+    }
+    
+    public void ReportNotLeftValueError(in TextLocation location, string expectVariableName)
+    {
+        Report(location, DiagnosticKind.SemanticError, $"Expect variable {expectVariableName} is not left value.");
+    }
+    
+    // public void ReportNot
+
+    public void ReportCodeGenError(in TextLocation location, string message)
+    {
+        Report(location, DiagnosticKind.CodeGenError, message);
     }
     
     public static void PrintDiagnostics(System.Collections.Generic.IEnumerable<Diagnostic> diagnostics)

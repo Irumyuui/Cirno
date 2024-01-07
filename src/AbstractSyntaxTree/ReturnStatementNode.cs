@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Cirno.CodeGen;
+using LLVMSharp.Interop;
 
 namespace Cirno.AbstractSyntaxTree;
 
@@ -23,4 +25,8 @@ public sealed class ReturnStatementNode : StatementNode
         if (ReturnExpr is not null)
             yield return ReturnExpr;
     }
+    
+    public override LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
+        LLVMBasicBlockRef? exitBasicBlock)
+        => visitor.Visit(this, entryBasicBlock, entryBasicBlock);
 }

@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Cirno.CodeGen;
+using LLVMSharp.Interop;
 
 namespace Cirno.AbstractSyntaxTree;
 
@@ -30,16 +32,7 @@ public sealed class ArraySubscriptExprNode : LiteralNode
         yield return OffsetExpr;
     }
 
-    // public override void Dump() {
-    //     Console.Write($"{NodeType}");
-    //     var prevColor = Console.ForegroundColor;
-
-    //     Console.ForegroundColor = ConsoleColor.DarkYellow;
-    //     Console.Write(" => ");
-
-    //     Console.ForegroundColor = ConsoleColor.DarkBlue;
-    //     Console.Write($"{Name");
-
-    //     Console.ForegroundColor = prevColor;
-    // }
+    public override LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
+        LLVMBasicBlockRef? exitBasicBlock)
+        => visitor.Visit(this, entryBasicBlock, entryBasicBlock);
 }

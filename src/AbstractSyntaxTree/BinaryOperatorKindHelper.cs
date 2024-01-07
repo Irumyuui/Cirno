@@ -1,13 +1,6 @@
-using Cirno.AbstractSyntaxTreeVisitor;
-using Cirno.Expressions;
 using Cirno.Lexer;
 
 namespace Cirno.AbstractSyntaxTree;
-
-// public static class LiteralTypeHelper
-// {
-//     public static LiteralType TryParseFromSyntaxKind()
-// }
 
 public static class BinaryOperatorKindHelper
 {

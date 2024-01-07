@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cirno.CodeGen;
+using LLVMSharp.Interop;
 
 namespace Cirno.AbstractSyntaxTree;
 
-public abstract class ASTNode
+public abstract class ASTNode : ICodeGenVisitable
 {
     public abstract string Name { get; }
     public abstract ASTNodeType NodeType { get; }
@@ -41,4 +43,8 @@ public abstract class ASTNode
         var prevColor = Console.ForegroundColor;
         Console.ForegroundColor = prevColor;
     }
+
+    public virtual LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
+        LLVMBasicBlockRef? exitBasicBlock)
+        => visitor.Visit(this, entryBasicBlock, exitBasicBlock);
 }
