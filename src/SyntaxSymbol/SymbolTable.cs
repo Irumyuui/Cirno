@@ -93,5 +93,5 @@ public sealed class EnvSymbolTable
         return false;
     }
 
-    public bool Contains(string name) => SymbolTable.ContainsKey(name);
+    public bool CurrentContains(string name) => SymbolTable.ContainsKey(name);
 }

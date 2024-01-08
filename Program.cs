@@ -50,6 +50,7 @@ astTree.Dump();
 
 var visitor = new CodeGenVisitor("main", parser.Diagnostics);
 astTree.Root.Accept(visitor, null, null);
+visitor.Dump();
 
 return;
 

@@ -48,7 +48,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     public CodeGenVisitor(string moduleName, DiagnosticTools.DiagnosticList diagnostics)
     {
         _context = LLVMContextRef.Create();
-        _module = _context.CreateModuleWithName("");
+        _module = _context.CreateModuleWithName(moduleName);
         _irBuilder = _context.CreateBuilder();
         
         _symbolTable = new EnvSymbolTable(null);
@@ -72,7 +72,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         var outputFnTy = LLVMTypeRef.CreateFunction(outputFnRetTy, outputFnParamsTy);
         var outputFn = _module.AddFunction("output", outputFnTy);
         
-        _symbolTable.Add("input",
+        _symbolTable.Add("output",
             new FunctionSymbol(new SyntaxToken(SyntaxKind.FunctionExpression, "output", 0, 0), "output", outputFn, outputFnTy));
 
     }
@@ -105,6 +105,11 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         _isDisposed = true;
     }
 
+    public void Dump()
+    {
+        _module.Dump();
+    }
+    
     /// <summary>
     /// 数组下标访问
     /// </summary>
@@ -123,12 +128,14 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         if (arrayValue is null)
         {
             _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col), "");
+            return null;
         }
         
-        if (arrayValue?.Value.TypeOf.ElementType.Kind is not LLVMTypeKind.LLVMArrayTypeKind)
+        if (arrayValue?.Value.TypeOf.ElementType.Kind is not LLVMTypeKind.LLVMPointerTypeKind)
         {
             _diagnostics.ReportNotExpectType(new TextLocation(node.Position.Line, node.Position.Col),
                 arrayValue?.Name ?? "", ValueTypeKind.IntArray, arrayValue?.TypeKind ?? ValueTypeKind.Void);
+            return null;
         }
 
         var maybeIndex = node.OffsetExpr.Accept(this, entryBasicBlock, exitBasicBlock);
@@ -682,7 +689,46 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     public LLVMValueRef? Visit(VariableDeclarationNode node, LLVMBasicBlockRef? entryBasicBlock,
         LLVMBasicBlockRef? exitBasicBlock)
     {
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
+        if (node.Type is not LiteralType.Int and not LiteralType.IntPtr)
+        {
+            _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
+                $"Variable definition must be of type int or int[].");
+            return null;
+        }
+
+        if (_symbolTable.CurrentContains(node.Name))
+        {
+            _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
+                $"Variable {node.Name} redefined.");
+        }
+
+        LLVMTypeRef valueTy;
+        if (node.Type is LiteralType.Int)
+        {
+            valueTy = _context.Int32Type;
+        }
+        else
+        {
+            int len = node.ArrayLength!.Value;
+            valueTy = LLVMTypeRef.CreateArray(_context.Int32Type, (uint)len);
+        }
+
+        LLVMValueRef value;
+        if (_symbolTable.PrevTable is null)
+        {
+            value = _module.AddGlobal(valueTy, node.Name);
+        }
+        else
+        {
+            value = _irBuilder.BuildAlloca(valueTy, node.Name);
+        }
+
+        _symbolTable.Add(node.Name,
+            new ValueSymbol(new SyntaxToken(SyntaxKind.Identifier, node.Name, node.Position.Line, node.Position.Col),
+                node.Name, value, valueTy, node.Type is LiteralType.Int ? ValueTypeKind.Int : ValueTypeKind.IntArray));
+
+        return null;
     }
 
     public LLVMValueRef? Visit(ReturnStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
