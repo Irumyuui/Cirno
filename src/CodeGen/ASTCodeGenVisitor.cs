@@ -463,12 +463,13 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         foreach (var stmtNode in node.ExpressionStatement)
         {
-            stmtNode.Accept(this, entryBasicBlock, exitBasicBlock);
+            var result = stmtNode.Accept(this, entryBasicBlock, exitBasicBlock);
 
-            if (stmtNode is ReturnStatementNode)
-            {
-                return null;
-            }
+            if (stmtNode is not ReturnStatementNode)
+                continue;
+            
+            _symbolTable = _symbolTable.PrevTable ?? new EnvSymbolTable(null);
+            return result;
         }
         
         _symbolTable = _symbolTable.PrevTable ?? new EnvSymbolTable(null);
@@ -488,6 +489,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     public LLVMValueRef? Visit(FunctionDeclarationNode node, LLVMBasicBlockRef? entryBasicBlock,
         LLVMBasicBlockRef? exitBasicBlock)
     {
+        // defined a function
         System.Diagnostics.Debug.WriteLine(_module);
 
         if (node.Parameters.Select(item => item.Name).Distinct().Count() < node.Parameters.Length)
@@ -545,6 +547,8 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         _symbolTable = new EnvSymbolTable(_symbolTable);
 
+        // function params alloc
+        
         var entry = func.AppendBasicBlock("entry");
         _irBuilder.PositionAtEnd(entry);
 
@@ -558,8 +562,6 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return _irBuilder.BuildRet(LLVMValueRef.CreateConstInt(_context.Int32Type, 1, true));
         }
 
-        //bool hasBrokenReturn = false;
-
         for (int i = 0; i < func.Params.Length; i++)
         {
             var (item, name) = (func.Params[i], node.Parameters[i].Name);
@@ -571,6 +573,8 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
                     name, value, value.TypeOf,
                     item.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind ? ValueTypeKind.IntArray : ValueTypeKind.Int, ValueScopeKind.Local));
         }
+        
+        // function body construct
         
         var compBasicBlock = func.AppendBasicBlock("comps");
         _irBuilder.BuildBr(compBasicBlock);
@@ -584,10 +588,20 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         foreach (var next in node.Body.ExpressionStatement)
         {
-            next.Accept(this, entryBasicBlock, exitBasicBlock);
-            if (next is ReturnStatementNode)
+            var result = next.Accept(this, entryBasicBlock, exitBasicBlock);
+            if (result is not null)
             {
-                hasBreakRet = true;
+                hasBreakRet = next switch
+                {
+                    IfStatementNode => true,
+                    ReturnStatementNode => true,
+                    WhileStatementNode => true,
+                    _ => false
+                };
+            }
+
+            if (hasBreakRet)
+            {
                 break;
             }
         }
@@ -612,6 +626,11 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public LLVMValueRef? Visit(IfStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
+        if (node.Body.Length is 0)
+        {
+            return null;
+        }
+        
         var result = node.Expr.Accept(this, entryBasicBlock, exitBasicBlock);
         if (result is null)
         {
@@ -633,10 +652,29 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         }
 
         var func = _irBuilder.InsertBlock.Parent;
+
+        if (node.Body.Length is 1)
+        {
+            var yesDoBasicBlock = func.AppendBasicBlock("if_then");
+            var noDoBasicBlock = func.AppendBasicBlock("if_not");
+
+            _irBuilder.BuildCondBr(_irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntNE, ret,
+                LLVMValueRef.CreateConstInt(ret.TypeOf, 1)), yesDoBasicBlock, noDoBasicBlock);
+            
+            _irBuilder.PositionAtEnd(yesDoBasicBlock);
+            if (node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock) is null)
+            {
+                _irBuilder.BuildBr(noDoBasicBlock);
+            }
+
+            _irBuilder.PositionAtEnd(noDoBasicBlock);
+            
+            return null;
+        }
         
         var thenEntryBlock = func.AppendBasicBlock("if_then");
         var elseEntryBlock = func.AppendBasicBlock("if_else");
-        var mergeEntryBlock = func.AppendBasicBlock("if_merge");
+        // var mergeEntryBlock = func.AppendBasicBlock("if_merge");
 
         _irBuilder.BuildCondBr(_irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntNE, ret,
             LLVMValueRef.CreateConstInt(ret.TypeOf, 1)), thenEntryBlock, elseEntryBlock);
@@ -645,27 +683,45 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         System.Diagnostics.Debug.WriteLine("In if stmt => then");
         System.Diagnostics.Debug.WriteLine(_module);
         _irBuilder.PositionAtEnd(thenEntryBlock);
-        if (node.Body.Length >= 1)
-        {
-            node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock);
-        }
-        _irBuilder.BuildBr(mergeEntryBlock);
+        var result1 = node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock);
+        
+        // if (node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock) is null)
+        // {
+        //     // node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock);
+        //     _irBuilder.BuildBr(mergeEntryBlock);
+        // }
 
         System.Diagnostics.Debug.WriteLine("In if stmt => else");
         System.Diagnostics.Debug.WriteLine(_module);
+        
         // else
         _irBuilder.PositionAtEnd(elseEntryBlock);
-        if (node.Body.Length >= 2)
-        {
-            node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock);
-        }
-        _irBuilder.BuildBr(mergeEntryBlock);
+        var result2 = node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock);
+        
+        // if (node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock) is null)
+        // {
+        //     // node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock);
+        //     _irBuilder.BuildBr(mergeEntryBlock);
+        // }
 
+        if (result1 is not null && result2 is not null)
+        {
+            return result2;
+        }
+        
+        var mergeEntryBlock = func.AppendBasicBlock("if_merge");
+        _irBuilder.PositionAtEnd(thenEntryBlock);
+        
+        _irBuilder.BuildBr(mergeEntryBlock);
+        
+        _irBuilder.PositionAtEnd(elseEntryBlock);
+        _irBuilder.BuildBr(mergeEntryBlock);
+        
+        _irBuilder.PositionAtEnd(mergeEntryBlock);
+        
         System.Diagnostics.Debug.WriteLine("In if stmt => merge");
         System.Diagnostics.Debug.WriteLine(_module);
-
-        _irBuilder.PositionAtEnd(mergeEntryBlock);
-
+        
         return null;
     }
 
