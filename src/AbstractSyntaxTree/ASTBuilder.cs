@@ -285,30 +285,59 @@ internal sealed class ASTBuilder
                             break;
                         }
 
-                    case SelectionStatementExpression selectionEpxr:
+                    case SelectionStatementExpression selectionExpr:
                         {
-                            VisitBinaryExpression(selectionEpxr.LogicExpr, out var logicExprNode);
+                            VisitBinaryExpression(selectionExpr.LogicExpr, out var logicExprNode);
 
                             CompoundStatementNode? block1 = null, block2 = null;
-                            if (selectionEpxr.FirstStatementsList is CompoundStatementExpression compound1)
+                            if (selectionExpr.FirstStatementsList is CompoundStatementExpression compound1)
                             {
                                 VisitCompoundStatement(compound1, out block1);
                             }
-                            else if (selectionEpxr.FirstStatementsList is not null)
+                            else if (selectionExpr.FirstStatementsList is not null)
                             {
-                                VisitBinaryExpression(selectionEpxr.FirstStatementsList, out var result);
-                                block1 = new CompoundStatementNode(null, [], [result]);
-                                result.Parent = block1;
+                                // StatementNode resultNode;
+                                switch (selectionExpr.FirstStatementsList)
+                                {
+                                    case ReturnExpression retExpr:
+                                        VisitReturnExpression(retExpr, out var retRet);
+                                        block1 = new CompoundStatementNode(null, [], [retRet]);
+                                        retRet.Parent = block1;
+                                        break;
+                                    case BinaryExpression binExpr:
+                                        VisitBinaryExpression(binExpr, out var binRet);
+                                        block1 = new CompoundStatementNode(null, [], [binRet]);
+                                        binRet.Parent = block1;
+                                        break;
+                                }
+                                
+                                // VisitBinaryExpression(selectionEpxr.FirstStatementsList, out var result);
+                                // block1 = new CompoundStatementNode(null, [], [result]);
+                                // result.Parent = block1;
                             }
-                            if (block1 is not null && selectionEpxr.SecondStatementsList is CompoundStatementExpression compound2)
+                            if (block1 is not null && selectionExpr.SecondStatementsList is CompoundStatementExpression compound2)
                             {
                                 VisitCompoundStatement(compound2, out block2);
                             }
-                            else if (selectionEpxr.SecondStatementsList is not null)
+                            else if (selectionExpr.SecondStatementsList is not null)
                             {
-                                VisitBinaryExpression(selectionEpxr.SecondStatementsList, out var result);
-                                block2 = new CompoundStatementNode(null, [], [result]);
-                                result.Parent = block2;
+                                // VisitBinaryExpression(selectionEpxr.SecondStatementsList, out var result);
+                                // block2 = new CompoundStatementNode(null, [], [result]);
+                                // result.Parent = block2;
+                                
+                                switch (selectionExpr.SecondStatementsList)
+                                {
+                                    case ReturnExpression retExpr:
+                                        VisitReturnExpression(retExpr, out var retRet);
+                                        block2 = new CompoundStatementNode(null, [], [retRet]);
+                                        retRet.Parent = block2;
+                                        break;
+                                    case BinaryExpression binExpr:
+                                        VisitBinaryExpression(binExpr, out var binRet);
+                                        block2 = new CompoundStatementNode(null, [], [binRet]);
+                                        binRet.Parent = block2;
+                                        break;
+                                }
                             }
 
                             // var stmt = new IfStatementNode(null, stmt);
@@ -334,16 +363,18 @@ internal sealed class ASTBuilder
                     case ReturnExpression returnExpr:
                         {
                             // var returnExprNode = VisitBinaryExpression(returnExpr.Expression)
-                            ExprNode? retExprNode = null;
-                            if (returnExpr.Expression is not null)
-                            {
-                                VisitBinaryExpression(returnExpr.Expression, out retExprNode);
-                            }
-                            var stmt = new ReturnStatementNode(null, retExprNode);
-                            if (retExprNode is not null)
-                            {
-                                retExprNode.Parent = stmt;
-                            }
+                            // ExprNode? retExprNode = null;
+                            // if (returnExpr.Expression is not null)
+                            // {
+                            //     VisitBinaryExpression(returnExpr.Expression, out retExprNode);
+                            // }
+                            // var stmt = new ReturnStatementNode(null, retExprNode);
+                            // if (retExprNode is not null)
+                            // {
+                            //     retExprNode.Parent = stmt;
+                            // }
+
+                            VisitReturnExpression(returnExpr, out var stmt);
 
                             stmtList.Add(stmt);
                             break;
@@ -371,6 +402,46 @@ internal sealed class ASTBuilder
         }
     }
 
+    private static void VisitReturnExpression(in ReturnExpression returnExpr, out StatementNode node)
+    {
+        ReturnStatementNode stmt;
+        switch (returnExpr.Expression)
+        {
+            case SimpleExpression simExpr:
+                VisitSimpleExpression(simExpr, out var simRet);
+                stmt = new ReturnStatementNode(null, simRet);
+                break;
+            case BinaryExpression binExpr:
+                VisitBinaryExpression(binExpr, out var binRet);
+                stmt = new ReturnStatementNode(null, binRet);
+                binRet.Parent = stmt;
+                break;
+            case CallFuncArgsExpression callFnExpr:
+                VisitCallFuncArgsExpression(callFnExpr, out var callRet);
+                stmt = new ReturnStatementNode(null, callRet);
+                callRet.Parent = stmt;
+                break;
+            default:
+                stmt = new ReturnStatementNode(null, null);
+                break;
+        }
+
+        node = stmt;
+
+        // ExprNode? retExprNode = null;
+        // if (returnExpr.Expression is not null)
+        // {
+        //     VisitBinaryExpression(returnExpr.Expression, out retExprNode);
+        // }
+        // var stmt = new ReturnStatementNode(null, retExprNode);
+        // if (retExprNode is not null)
+        // {
+        //     retExprNode.Parent = stmt;
+        // }
+        //
+        // node = stmt;
+    }
+
     private static void VisitBinaryExpression(in ExpressionNode expr, out ExprNode node)
     {
         switch (expr)
@@ -392,6 +463,8 @@ internal sealed class ASTBuilder
             case SimpleExpression simExpr:
                 VisitSimpleExpression(simExpr, out node);
                 break;
+            
+            // case ReturnExpression returnExpr:
 
             default:
                 throw new Exception($"Unexpected position in {nameof(VisitBinaryExpression)}");
@@ -470,6 +543,36 @@ internal sealed class ASTBuilder
         node = left;
     }
 
+    private static void VisitCallFuncArgsExpression(in CallFuncArgsExpression expr, out ExprNode node)
+    {
+        var funcName = expr.Identifier.Name;
+
+        List<ExprNode> argsList = [];
+        if (((ArgsExpression)expr.Args).ArgsList is ArgsListExpression argsListExpr)
+        {
+            VisitBinaryExpression(argsListExpr.Expr, out var result);
+            argsList.Add(result);
+
+            var curTail = argsListExpr.ArgsListTail as ArgsListTailExpression;
+            while (curTail is not null)
+            {
+                if (curTail.Expr is null)
+                    break;
+
+                VisitBinaryExpression(curTail.Expr, out var binaryExprNode);
+                argsList.Add(binaryExprNode);
+
+                curTail = curTail.ArgsListTail as ArgsListTailExpression;
+            }
+        }
+
+        node = new CallFunctionNode(expr.Identifier.GetTextPosition(), null, funcName, [.. argsList]);
+        foreach (var item in argsList)
+        {
+            item.Parent = node;
+        }
+    }
+    
     private static void VisitFactor(in FactorExpression expr, out ExprNode node)
     {
         if (expr.Expr is VariableExpression varExpr)
@@ -478,32 +581,33 @@ internal sealed class ASTBuilder
         }
         else if (expr.Expr is CallFuncArgsExpression callFuncExpr)
         {
-            var funcName = callFuncExpr.Identifier.Name;
-
-            List<ExprNode> argsList = [];
-            if (((ArgsExpression)callFuncExpr.Args).ArgsList is ArgsListExpression argsListExpr)
-            {
-                VisitBinaryExpression(argsListExpr.Expr, out var result);
-                argsList.Add(result);
-
-                var curTail = argsListExpr.ArgsListTail as ArgsListTailExpression;
-                while (curTail is not null)
-                {
-                    if (curTail.Expr is null)
-                        break;
-
-                    VisitBinaryExpression(curTail.Expr, out var binaryExprNode);
-                    argsList.Add(binaryExprNode);
-
-                    curTail = curTail.ArgsListTail as ArgsListTailExpression;
-                }
-            }
-
-            node = new CallFunctionNode(callFuncExpr.Identifier.GetTextPosition(), null, funcName, [.. argsList]);
-            foreach (var item in argsList)
-            {
-                item.Parent = node;
-            }
+            VisitCallFuncArgsExpression(callFuncExpr, out node);
+            // var funcName = callFuncExpr.Identifier.Name;
+            //
+            // List<ExprNode> argsList = [];
+            // if (((ArgsExpression)callFuncExpr.Args).ArgsList is ArgsListExpression argsListExpr)
+            // {
+            //     VisitBinaryExpression(argsListExpr.Expr, out var result);
+            //     argsList.Add(result);
+            //
+            //     var curTail = argsListExpr.ArgsListTail as ArgsListTailExpression;
+            //     while (curTail is not null)
+            //     {
+            //         if (curTail.Expr is null)
+            //             break;
+            //
+            //         VisitBinaryExpression(curTail.Expr, out var binaryExprNode);
+            //         argsList.Add(binaryExprNode);
+            //
+            //         curTail = curTail.ArgsListTail as ArgsListTailExpression;
+            //     }
+            // }
+            //
+            // node = new CallFunctionNode(callFuncExpr.Identifier.GetTextPosition(), null, funcName, [.. argsList]);
+            // foreach (var item in argsList)
+            // {
+            //     item.Parent = node;
+            // }
 
             // while (curTail is not null) {
             //     VisitBinaryExpression(curTail.Expr, out var binaryExprNode);

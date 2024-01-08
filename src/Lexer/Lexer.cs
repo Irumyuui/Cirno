@@ -80,8 +80,12 @@ public sealed class Lexer
             MoveNextPosition();
             state = next.Value;
 
-            while (Current is '\r' or '\n' or '\t') {
-                MoveNextPosition();
+            if (Current is '\r' or '\n' or '\t')
+            {
+                while (Current is '\r' or '\n' or '\t') {
+                    MoveNextPosition();
+                }
+                break;
             }
         }
 
