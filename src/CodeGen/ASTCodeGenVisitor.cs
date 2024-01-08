@@ -11,27 +11,27 @@ namespace Cirno.CodeGen;
 
 public interface ICodeGenVisitable
 {
-    LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
+    LLVMValueRef? Accept(ICodeGenVisitor visitor);
 }
 
 public interface ICodeGenVisitor
 {
-    LLVMValueRef? Visit(ArraySubscriptExprNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(ASTNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(BinaryOperatorNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(CallFunctionNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(CompoundStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(DeclarationNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(ExprNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(FunctionDeclarationNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(IfStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit<TValue>(IntegerLiteral<TValue> node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(LiteralNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(ProgramNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(StatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(VariableDeclarationNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(ReturnStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
-    LLVMValueRef? Visit(WhileStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock);
+    LLVMValueRef? Visit(ArraySubscriptExprNode node);
+    LLVMValueRef? Visit(ASTNode node);
+    LLVMValueRef? Visit(BinaryOperatorNode node);
+    LLVMValueRef? Visit(CallFunctionNode node);
+    LLVMValueRef? Visit(CompoundStatementNode node);
+    LLVMValueRef? Visit(DeclarationNode node);
+    LLVMValueRef? Visit(ExprNode node);
+    LLVMValueRef? Visit(FunctionDeclarationNode node);
+    LLVMValueRef? Visit(IfStatementNode node);
+    LLVMValueRef? Visit<TValue>(IntegerLiteral<TValue> node);
+    LLVMValueRef? Visit(LiteralNode node);
+    LLVMValueRef? Visit(ProgramNode node);
+    LLVMValueRef? Visit(StatementNode node);
+    LLVMValueRef? Visit(VariableDeclarationNode node);
+    LLVMValueRef? Visit(ReturnStatementNode node);
+    LLVMValueRef? Visit(WhileStatementNode node);
 }
 
 public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
@@ -110,7 +110,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         _module.Dump();
     }
     
-    public LLVMValueRef? Visit(ArraySubscriptExprNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(ArraySubscriptExprNode node)
     {
         if (!_symbolTable.TryGetSymbolFromLinkTable(node.Name, out var arrayValue))
         {
@@ -131,7 +131,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return null;
         }
 
-        var maybeIndex = node.OffsetExpr.Accept(this, entryBasicBlock, exitBasicBlock);
+        var maybeIndex = node.OffsetExpr.Accept(this);
         if (maybeIndex is null)
         {
             _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
@@ -159,24 +159,24 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return null;
     }
 
-    public LLVMValueRef? Visit(ASTNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(ASTNode node)
     {
         // throw new NotImplementedException();
         foreach (var nextNode in node.GetChildren())
         {
-            nextNode.Accept(this, entryBasicBlock, exitBasicBlock);
+            nextNode.Accept(this);
         }
 
         return null;
     }
 
-    public LLVMValueRef? Visit(BinaryOperatorNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(BinaryOperatorNode node)
     {
         System.Diagnostics.Debug.WriteLine("In BinaryOperatorNode");
         System.Diagnostics.Debug.WriteLine(_module);
 
-        var leftResult = node.Left.Accept(this, entryBasicBlock, exitBasicBlock);
-        var rightResult = node.Right!.Accept(this, entryBasicBlock, exitBasicBlock);
+        var leftResult = node.Left.Accept(this);
+        var rightResult = node.Right!.Accept(this);
 
         if (leftResult is null || rightResult is null)
         {
@@ -379,7 +379,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return null;
     }
 
-    public LLVMValueRef? Visit(CallFunctionNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(CallFunctionNode node)
     {
         if (!_symbolTable.TryGetSymbolFromLinkTable(node.Name, out var symbol) && symbol is null)
         {
@@ -420,7 +420,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         bool error = false;
         for (int i = 0; i < args.Length; i++)
         {
-            var result = node.Args[i].Accept(this, entryBasicBlock, exitBasicBlock);
+            var result = node.Args[i].Accept(this);
             if (result is null || error is true)
             {
                 error = true;
@@ -452,18 +452,18 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return _irBuilder.BuildCall2(symbol.Type, func, args.ToArray());
     }
 
-    public LLVMValueRef? Visit(CompoundStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(CompoundStatementNode node)
     {
         _symbolTable = new EnvSymbolTable(_symbolTable);
 
         foreach (var declarationNode in node.DeclarationStatement)
         {
-            declarationNode.Accept(this, entryBasicBlock, exitBasicBlock);
+            declarationNode.Accept(this);
         }
 
         foreach (var stmtNode in node.ExpressionStatement)
         {
-            var result = stmtNode.Accept(this, entryBasicBlock, exitBasicBlock);
+            var result = stmtNode.Accept(this);
 
             if (stmtNode is not ReturnStatementNode)
                 continue;
@@ -476,18 +476,17 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return null;
     }
 
-    public LLVMValueRef? Visit(DeclarationNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(DeclarationNode node)
     {
         throw new NotImplementedException();
     }
 
-    public LLVMValueRef? Visit(ExprNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(ExprNode node)
     {
         throw new NotImplementedException();
     }
 
-    public LLVMValueRef? Visit(FunctionDeclarationNode node, LLVMBasicBlockRef? entryBasicBlock,
-        LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(FunctionDeclarationNode node)
     {
         // defined a function
         System.Diagnostics.Debug.WriteLine(_module);
@@ -583,12 +582,12 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         var hasBreakRet = false;
         foreach (var next in node.Body.DeclarationStatement)
         {
-            next.Accept(this, entryBasicBlock, exitBasicBlock);
+            next.Accept(this);
         }
 
         foreach (var next in node.Body.ExpressionStatement)
         {
-            var result = next.Accept(this, entryBasicBlock, exitBasicBlock);
+            var result = next.Accept(this);
             if (result is not null)
             {
                 hasBreakRet = next switch
@@ -624,14 +623,14 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return null;
     }
 
-    public LLVMValueRef? Visit(IfStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(IfStatementNode node)
     {
         if (node.Body.Length is 0)
         {
             return null;
         }
         
-        var result = node.Expr.Accept(this, entryBasicBlock, exitBasicBlock);
+        var result = node.Expr.Accept(this);
         if (result is null)
         {
             return null;
@@ -662,7 +661,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
                 LLVMValueRef.CreateConstInt(ret.TypeOf, 1)), yesDoBasicBlock, noDoBasicBlock);
             
             _irBuilder.PositionAtEnd(yesDoBasicBlock);
-            if (node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock) is null)
+            if (node.Body[0].Accept(this) is null)
             {
                 _irBuilder.BuildBr(noDoBasicBlock);
             }
@@ -683,7 +682,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         System.Diagnostics.Debug.WriteLine("In if stmt => then");
         System.Diagnostics.Debug.WriteLine(_module);
         _irBuilder.PositionAtEnd(thenEntryBlock);
-        var result1 = node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock);
+        var result1 = node.Body[0].Accept(this);
         
         // if (node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock) is null)
         // {
@@ -696,7 +695,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         
         // else
         _irBuilder.PositionAtEnd(elseEntryBlock);
-        var result2 = node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock);
+        var result2 = node.Body[1].Accept(this);
         
         // if (node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock) is null)
         // {
@@ -725,7 +724,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return null;
     }
 
-    public LLVMValueRef? Visit<TValue>(IntegerLiteral<TValue> node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit<TValue>(IntegerLiteral<TValue> node)
     {
         if (node.Value is int v1)
         {
@@ -737,7 +736,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return null;
     }
 
-    public LLVMValueRef? Visit(LiteralNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(LiteralNode node)
     {
         if (!_symbolTable.TryGetSymbolFromLinkTable(node.Name, out var result) || result is null)
         {
@@ -754,7 +753,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return result.Value;
     }
 
-    public LLVMValueRef? Visit(ProgramNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(ProgramNode node)
     {
         if (node.DeclarationNodes.LastOrDefault(item => item.NodeType is ASTNodeType.FunctionDeclaration)
                 ?.Name is not "main")
@@ -764,19 +763,18 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         foreach (var exprNode in node.DeclarationNodes)
         {
-            exprNode.Accept(this, entryBasicBlock, exitBasicBlock);
+            exprNode.Accept(this);
         }
 
         return null;
     }
 
-    public LLVMValueRef? Visit(StatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(StatementNode node)
     {
         throw new NotImplementedException();
     }
 
-    public LLVMValueRef? Visit(VariableDeclarationNode node, LLVMBasicBlockRef? entryBasicBlock,
-        LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(VariableDeclarationNode node)
     {
         // throw new NotImplementedException();
         if (node.Type is not LiteralType.Int and not LiteralType.IntPtr)
@@ -825,7 +823,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return null;
     }
 
-    public LLVMValueRef? Visit(ReturnStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(ReturnStatementNode node)
     {
         //if (entryBasicBlock is null)
         //{
@@ -834,7 +832,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         
         //_irBuilder.PositionAtEnd(entryBasicBlock.Value);
         
-        var result = node.ReturnExpr?.Accept(this, entryBasicBlock, exitBasicBlock);
+        var result = node.ReturnExpr?.Accept(this);
         if (result is null)
         {
             return _irBuilder.BuildRetVoid();
@@ -853,7 +851,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         }
     }
 
-    public LLVMValueRef? Visit(WhileStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
+    public LLVMValueRef? Visit(WhileStatementNode node)
     {
         System.Diagnostics.Debug.WriteLine(_module);
 
@@ -868,7 +866,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         _irBuilder.BuildBr(logicBasicBlock);
 
         _irBuilder.PositionAtEnd(logicBasicBlock);
-        var comp = node.Expr.Accept(this, entryBasicBlock, exitBasicBlock);
+        var comp = node.Expr.Accept(this);
         if (comp is null)
         {
             return null;
@@ -883,7 +881,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
                 LLVMValueRef.CreateConstInt(compValue.TypeOf, 1)), loopBasicBlock, loopEndBasicBlock);
 
         _irBuilder.PositionAtEnd(loopBasicBlock);
-        node.CompoundStatement.Accept(this, entryBasicBlock, exitBasicBlock);
+        node.CompoundStatement.Accept(this);
         _irBuilder.BuildBr(logicBasicBlock);
         
         _irBuilder.PositionAtEnd(loopEndBasicBlock);

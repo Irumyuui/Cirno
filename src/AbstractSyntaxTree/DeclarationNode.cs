@@ -5,7 +5,6 @@ namespace Cirno.AbstractSyntaxTree;
 
 public abstract class DeclarationNode : ASTNode
 {
-    public override LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
-        LLVMBasicBlockRef? exitBasicBlock)
-        => visitor.Visit(this, entryBasicBlock, entryBasicBlock);
+    public override LLVMValueRef? Accept(ICodeGenVisitor visitor)
+        => visitor.Visit(this);
 }

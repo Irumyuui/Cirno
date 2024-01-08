@@ -44,7 +44,6 @@ public abstract class ASTNode : ICodeGenVisitable
         Console.ForegroundColor = prevColor;
     }
 
-    public virtual LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
-        LLVMBasicBlockRef? exitBasicBlock)
-        => visitor.Visit(this, entryBasicBlock, exitBasicBlock);
+    public virtual LLVMValueRef? Accept(ICodeGenVisitor visitor)
+        => visitor.Visit(this);
 }

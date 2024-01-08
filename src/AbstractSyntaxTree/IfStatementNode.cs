@@ -30,7 +30,6 @@ public sealed class IfStatementNode : StatementNode
             yield return item;
     }
     
-    public override LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
-        LLVMBasicBlockRef? exitBasicBlock)
-        => visitor.Visit(this, entryBasicBlock, entryBasicBlock);
+    public override LLVMValueRef? Accept(ICodeGenVisitor visitor)
+        => visitor.Visit(this);
 }

@@ -32,7 +32,6 @@ public sealed class ArraySubscriptExprNode : LiteralNode
         yield return OffsetExpr;
     }
 
-    public override LLVMValueRef? Accept(ICodeGenVisitor visitor, LLVMBasicBlockRef? entryBasicBlock,
-        LLVMBasicBlockRef? exitBasicBlock)
-        => visitor.Visit(this, entryBasicBlock, entryBasicBlock);
+    public override LLVMValueRef? Accept(ICodeGenVisitor visitor)
+        => visitor.Visit(this);
 }
