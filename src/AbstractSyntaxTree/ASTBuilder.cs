@@ -171,7 +171,7 @@ internal sealed class ASTBuilder
                 throw new Exception($"Unexpected {nameof(FunctionExpression)} type in {nameof(VisitFunctionDeclation)}, expected ExpressionNode type is {nameof(ParamsExpression)} or {nameof(SyntaxToken)} with void kind");
         }
 
-        functionType.Add(LiteralType.Void);
+        // functionType.Add(LiteralType.Void);
         foreach (var item in paramters)
         {
             functionType.Add(item.Type);

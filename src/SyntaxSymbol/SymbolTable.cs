@@ -66,6 +66,7 @@ public sealed class EnvSymbolTable
 {
     public EnvSymbolTable(EnvSymbolTable? prevTable) {
         PrevTable = prevTable;
+        // CurrentFunction = currentFunction;
     }
 
     private System.Collections.Generic.Dictionary<string, ISymbol> SymbolTable { get; set; } = [];
@@ -80,6 +81,8 @@ public sealed class EnvSymbolTable
 
     public bool TryGetSymbolFromCurrentTable(string key, out ISymbol? value)
         => SymbolTable.TryGetValue(key, out value);
+    
+    // public LLVMValueRef? CurrentFunction { get; }
 
     public bool TryGetSymbolFromLinkTable(string key, out ISymbol? value) {
         for (var table = this; table is not null; table = table.PrevTable) {
@@ -89,4 +92,6 @@ public sealed class EnvSymbolTable
         value = null;
         return false;
     }
+
+    public bool Contains(string name) => SymbolTable.ContainsKey(name);
 }

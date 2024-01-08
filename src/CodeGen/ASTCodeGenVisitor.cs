@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Cirno.AbstractSyntaxTree;
 using Cirno.DiagnosticTools;
 using Cirno.Lexer;
@@ -39,7 +40,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     private LLVMModuleRef _module;
     private LLVMBuilderRef _irBuilder;
     private bool _isDisposed;
-    private Cirno.SyntaxSymbol.EnvSymbolTable _symbolTable;
+    private EnvSymbolTable _symbolTable;
     private Cirno.DiagnosticTools.DiagnosticList _diagnostics;
     
     public Cirno.DiagnosticTools.DiagnosticList Diagnostics => _diagnostics;
@@ -52,6 +53,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         
         _symbolTable = new EnvSymbolTable(null);
         _diagnostics = new DiagnosticList(diagnostics);
+        
         PrevInitBasicEnv();
     }
     
@@ -404,7 +406,8 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     {
         if (!_symbolTable.TryGetSymbolFromLinkTable(node.Name, out var symbol) && symbol is null)
         {
-            _diagnostics.ReportUndefinedVariableError(new TextLocation(node.Position.Line, node.Position.Col), node.Name);
+            _diagnostics.ReportUndefinedVariableError(new TextLocation(node.Position.Line, node.Position.Col),
+                node.Name);
             return null;
         }
 
@@ -418,7 +421,8 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         if (argsArr.Any(item => item?.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind || item?.TypeOf is
                 { Kind: LLVMTypeKind.LLVMPointerTypeKind, ElementType.Kind: LLVMTypeKind.LLVMIntegerTypeKind }))
         {
-            _diagnostics.ReportCallFunctionArgsNotFullError(new TextLocation(node.Position.Line, node.Position.Col), node.Name, node.Args.Length);
+            _diagnostics.ReportCallFunctionArgsNotFullError(new TextLocation(node.Position.Line, node.Position.Col),
+                node.Name, node.Args.Length);
             return null;
         }
 
@@ -428,7 +432,25 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public LLVMValueRef? Visit(CompoundStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
-        throw new NotImplementedException();
+        _symbolTable = new EnvSymbolTable(_symbolTable);
+
+        foreach (var declarationNode in node.DeclarationStatement)
+        {
+            declarationNode.Accept(this, entryBasicBlock, exitBasicBlock);
+        }
+
+        foreach (var stmtNode in node.ExpressionStatement)
+        {
+            stmtNode.Accept(this, entryBasicBlock, exitBasicBlock);
+
+            if (stmtNode is ReturnStatementNode)
+            {
+                return null;
+            }
+        }
+        
+        _symbolTable = _symbolTable.PrevTable ?? new EnvSymbolTable(null);
+        return null;
     }
 
     public LLVMValueRef? Visit(DeclarationNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
@@ -444,12 +466,162 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     public LLVMValueRef? Visit(FunctionDeclarationNode node, LLVMBasicBlockRef? entryBasicBlock,
         LLVMBasicBlockRef? exitBasicBlock)
     {
-        throw new NotImplementedException();
+        if (node.Parameters.Select(item => item.Name).Distinct().Count() < node.Parameters.Length)
+        {
+            _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
+                $"Function {node.Name} parameter redefinition.");
+            return null;
+        }
+        
+        LLVMTypeRef funcRetTy;
+        if (node.FunctionType.FirstOrDefault() is LiteralType.Int)
+        {
+            funcRetTy = _context.Int32Type;
+        } else if (node.FunctionType.FirstOrDefault() is LiteralType.Void)
+        {
+            funcRetTy = _context.VoidType;
+        } else
+        {
+            _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
+                "Function return value can only be int or void.");
+            return null;
+        }
+
+        var funcParamsTy = new LLVMTypeRef[node.Parameters.Length];
+        for (int i = 0; i < node.Parameters.Length; i++)
+        {
+            if (node.Parameters[i].Type is LiteralType.Int)
+            {
+                funcParamsTy[i] = _context.Int32Type;
+            } else if (node.Parameters[i].Type is LiteralType.IntPtr)
+            {
+                funcParamsTy[i] = LLVMTypeRef.CreatePointer(_context.Int32Type, 0);
+            }
+            else
+            {
+                _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
+                    "Function declaration parameter type must be int or intPtr.");
+                return null;
+            }
+        }
+        
+        var funcTy = LLVMTypeRef.CreateFunction(funcRetTy, funcParamsTy);
+
+        if (_symbolTable.ContainsKey(node.Name))
+        {
+            _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col), $"Redefine variable {node.Name}.");
+            return null;
+        }
+        
+        var func = _module.AddFunction(node.Name, funcTy);
+        _symbolTable.Add(node.Name,
+            new FunctionSymbol(
+                new SyntaxToken(SyntaxKind.FunctionExpression, node.Name, node.Position.Line, node.Position.Col),
+                node.Name, func, funcTy));
+
+        _symbolTable = new EnvSymbolTable(_symbolTable);
+
+        var entry = func.AppendBasicBlock("");
+        _irBuilder.PositionAtEnd(entry);
+
+        if (node.Body.DeclarationStatement.Length is 0 && node.Body.ExpressionStatement.Length is 0)
+        {
+            if (funcRetTy.Kind is LLVMTypeKind.LLVMVoidTypeKind) 
+                return _irBuilder.BuildRetVoid();
+            
+            _diagnostics.ReportSemanticWarning(new TextLocation(node.Position.Line, node.Position.Col),
+                $"Function {node.Name} has no return value.");
+            return _irBuilder.BuildRet(LLVMValueRef.CreateConstInt(_context.Int32Type, 1, true));
+        }
+        
+        for (int i = 0; i < func.Params.Length; i++)
+        {
+            var (item, name) = (func.Params[i], node.Parameters[i].Name);
+
+            var value = _irBuilder.BuildAlloca(item.TypeOf);
+            _irBuilder.BuildStore(item, value);
+            _symbolTable.Add(name,
+                new ValueSymbol(new SyntaxToken(SyntaxKind.Identifier, name, node.Position.Line, node.Position.Col),
+                    name, value, value.TypeOf,
+                    item.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind ? ValueTypeKind.IntArray : ValueTypeKind.Int));
+        }
+        
+        var compBasicBlock = func.AppendBasicBlock("");
+        _irBuilder.BuildBr(compBasicBlock);
+
+        var result = node.Body.Accept(this, compBasicBlock, exitBasicBlock);
+
+        if (result?.TypeOf.Kind is not LLVMTypeKind.LLVMVoidTypeKind)
+        {
+            if (funcRetTy.Kind is LLVMTypeKind.LLVMVoidTypeKind) 
+                return _irBuilder.BuildRetVoid();
+            
+            _diagnostics.ReportSemanticWarning(new TextLocation(node.Position.Line, node.Position.Col),
+                $"Function {node.Name} has no return value.");
+            return _irBuilder.BuildRet(LLVMValueRef.CreateConstInt(_context.Int32Type, 1, true));
+        }
+        
+        _symbolTable = _symbolTable.PrevTable!;
+        
+        // throw new NotImplementedException();
+        return null;
     }
 
     public LLVMValueRef? Visit(IfStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
-        throw new NotImplementedException();
+        // if (_symbolTable.CurrentFunction is null)
+        // {
+        //     return null;
+        // }
+        
+        var result = node.Expr.Accept(this, entryBasicBlock, exitBasicBlock);
+        if (result is null)
+        {
+            return null;
+        }
+
+        LLVMValueRef ret;
+        if (result.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+            result.Value.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
+        {
+            ret = _irBuilder.BuildLoad2(result.Value.TypeOf.ElementType, result.Value);
+        } else if (result.Value.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
+        {
+            ret = result.Value;
+        }
+        else
+        {
+            return null;
+        }
+
+        var func = _irBuilder.InsertBlock.Parent;
+        
+        var thenEntryBlock = func.AppendBasicBlock("");
+        var elseEntryBlock = func.AppendBasicBlock("");
+        var mergeEntryBlock = func.AppendBasicBlock("");
+
+        _irBuilder.BuildCondBr(_irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntNE, ret,
+            LLVMValueRef.CreateConstInt(ret.TypeOf, 1)), thenEntryBlock, elseEntryBlock);
+        
+        // then
+        _irBuilder.PositionAtEnd(thenEntryBlock);
+        if (node.Body.Length >= 1)
+        {
+            node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock);
+        }
+        _irBuilder.BuildBr(mergeEntryBlock);
+
+        // else
+        _irBuilder.PositionAtEnd(elseEntryBlock);
+        if (node.Body.Length >= 2)
+        {
+            node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock);
+        }
+        _irBuilder.BuildBr(mergeEntryBlock);
+
+        _irBuilder.PositionAtEnd(mergeEntryBlock);
+
+        return null;
     }
 
     public LLVMValueRef? Visit<TValue>(IntegerLiteral<TValue> node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
@@ -459,12 +631,31 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return LLVMValueRef.CreateConstInt(_context.Int32Type, Convert.ToUInt64(long.Abs(v1)), v1 < 0);
         }
 
-        throw new Exception($"Error Integer Type {node.Value?.GetType().Name}");
+        // throw new Exception($"Error Integer Type {node.Value?.GetType().Name}");
+        _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
+            $"Error Integer Type {node.Value?.GetType().Name}");
+        return null;
     }
 
     public LLVMValueRef? Visit(LiteralNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
+        if (!_symbolTable.TryGetSymbolFromLinkTable(node.Name, out var result) || result is null)
+        {
+            _diagnostics.ReportUndefinedVariableError(new TextLocation(node.Position.Line, node.Position.Col),
+                node.Name);
+            return null;
+        }
+
+        if (result.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind &&
+            result.Value.TypeOf.ElementType.Kind is not LLVMTypeKind.LLVMIntegerTypeKind)
+        {
+            _diagnostics.ReportNotLeftValueError(new TextLocation(node.Position.Line, node.Position.Col), node.Name);
+            return null;
+        }
+
+        var rvalue = _irBuilder.BuildLoad2(result.Value.TypeOf.ElementType, result.Value);
+        return rvalue;
     }
 
     public LLVMValueRef? Visit(ProgramNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
@@ -523,6 +714,35 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public LLVMValueRef? Visit(WhileStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
+        
+        var func = _irBuilder.InsertBlock.Parent;
+        
+        var logicBasicBlock = func.AppendBasicBlock("");
+        var loopBasicBlock = func.AppendBasicBlock("");
+        var loopEndBasicBlock = func.AppendBasicBlock("");
+
+        _irBuilder.BuildBr(logicBasicBlock);
+        var comp = node.Expr.Accept(this, entryBasicBlock, exitBasicBlock);
+        if (comp is null)
+        {
+            return null;
+        }
+
+        var compValue = comp.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind
+            ? _irBuilder.BuildLoad2(comp.Value.TypeOf.ElementType, comp.Value)
+            : comp.Value;
+     
+        _irBuilder.BuildCondBr(
+            _irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntNE, compValue,
+                LLVMValueRef.CreateConstInt(compValue.TypeOf, 1)), loopBasicBlock, loopEndBasicBlock);
+
+        _irBuilder.PositionAtEnd(loopBasicBlock);
+        node.CompoundStatement.Accept(this, entryBasicBlock, exitBasicBlock);
+        _irBuilder.BuildBr(logicBasicBlock);
+        
+        _irBuilder.PositionAtEnd(loopEndBasicBlock);
+
+        return null;
     }
 }

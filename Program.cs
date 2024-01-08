@@ -1,5 +1,6 @@
 ﻿using System;
 using Cirno.AbstractSyntaxTree;
+using Cirno.CodeGen;
 using Cirno.DiagnosticTools;
 using Cirno.Lexer;
 using Cirno.Parser;
@@ -22,7 +23,7 @@ string[] lines =
      "    return k;",
      "}",
     "int main(void) {",
-    "  return 0;",
+    "  ",
     "}",
 ];
 
@@ -46,6 +47,9 @@ if (parser.Diagnostics.Count > 0)
 
 var astTree = new AST(exprTree);
 astTree.Dump();
+
+var visitor = new CodeGenVisitor("main", parser.Diagnostics);
+astTree.Root.Accept(visitor, null, null);
 
 return;
 

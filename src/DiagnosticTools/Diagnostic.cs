@@ -19,6 +19,7 @@ public enum DiagnosticKind
     ParseError,
     SemanticError,
     CodeGenError,
+    SemanticWarning
 }
 
 public readonly record struct Diagnostic(
@@ -89,6 +90,11 @@ public sealed class DiagnosticList : System.Collections.Generic.IEnumerable<Diag
     public void ReportSemanticError(in TextLocation location, string message)
     {
         Report(location, DiagnosticKind.SemanticError, message);
+    }
+    
+    public void ReportSemanticWarning(in TextLocation location, string message)
+    {
+        Report(location, DiagnosticKind.SemanticWarning, message);
     }
 
     public void ReportCallFunctionArgsNotFullError(in TextLocation location, string funcName, int argc)
