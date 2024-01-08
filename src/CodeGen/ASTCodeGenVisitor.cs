@@ -45,6 +45,8 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     private Cirno.DiagnosticTools.DiagnosticList _diagnostics;
     
     public Cirno.DiagnosticTools.DiagnosticList Diagnostics => _diagnostics;
+    public LLVMContextRef Context => _context;
+    public LLVMModuleRef Module => _module;
     
     public CodeGenVisitor(string moduleName, DiagnosticTools.DiagnosticList diagnostics)
     {
@@ -62,128 +64,17 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     private static void InitTarget()
     {
-        // wtf
-        // where is the loong arch?
-        
-        // LLVM.InitializeAllTargets();
-        LLVM.InitializeAArch64Target();
-        LLVM.InitializeAMDGPUTarget();
-        LLVM.InitializeARMTarget();
-        LLVM.InitializeAVRTarget();
-        LLVM.InitializeBPFTarget();
-        LLVM.InitializeHexagonTarget();
-        LLVM.InitializeLanaiTarget();
-        LLVM.InitializeMipsTarget();
-        LLVM.InitializeMSP430Target();
-        LLVM.InitializeNVPTXTarget();
-        LLVM.InitializePowerPCTarget();
-        LLVM.InitializeRISCVTarget();
-        LLVM.InitializeSparcTarget();
-        LLVM.InitializeSystemZTarget();
-        LLVM.InitializeVETarget();
-        LLVM.InitializeWebAssemblyTarget();
-        LLVM.InitializeX86Target();
-        LLVM.InitializeXCoreTarget();
-        
-        // LLVM.InitializeAllTargetMCs();
-        LLVM.InitializeAArch64TargetMC();
-        LLVM.InitializeAMDGPUTargetMC();
-        LLVM.InitializeARMTargetMC();
-        LLVM.InitializeAVRTargetMC();
-        LLVM.InitializeBPFTargetMC();
-        LLVM.InitializeHexagonTargetMC();
-        LLVM.InitializeLanaiTargetMC();
-        LLVM.InitializeMipsTargetMC();
-        LLVM.InitializeMSP430TargetMC();
-        LLVM.InitializeNVPTXTargetMC();
-        LLVM.InitializePowerPCTargetMC();
-        LLVM.InitializeRISCVTargetMC();
-        LLVM.InitializeSparcTargetMC();
-        LLVM.InitializeSystemZTargetMC();
-        LLVM.InitializeVETargetMC();
-        LLVM.InitializeWebAssemblyTargetMC();
-        LLVM.InitializeX86TargetMC();
-        LLVM.InitializeXCoreTargetMC();
-        
-        // LLVM.InitializeAllDisassemblers();
-        LLVM.InitializeAArch64Disassembler();
-        LLVM.InitializeAMDGPUDisassembler();
-        LLVM.InitializeARMDisassembler();
-        LLVM.InitializeAVRDisassembler();
-        LLVM.InitializeBPFDisassembler();
-        LLVM.InitializeHexagonDisassembler();
-        LLVM.InitializeLanaiDisassembler();
-        LLVM.InitializeMipsDisassembler();
-        LLVM.InitializeMSP430Disassembler();
-        LLVM.InitializePowerPCDisassembler();
-        LLVM.InitializeRISCVDisassembler();
-        LLVM.InitializeSparcDisassembler();
-        LLVM.InitializeSystemZDisassembler();
-        LLVM.InitializeVEDisassembler();
-        LLVM.InitializeWebAssemblyDisassembler();
-        LLVM.InitializeX86Disassembler();
-        LLVM.InitializeXCoreDisassembler();
-        
-        // LLVM.InitializeAllAsmParsers();
-        LLVM.InitializeAArch64AsmParser();
-        LLVM.InitializeAMDGPUAsmParser();
-        LLVM.InitializeARMAsmParser();
-        LLVM.InitializeAVRAsmParser();
-        LLVM.InitializeBPFAsmParser();
-        LLVM.InitializeHexagonAsmParser();
-        LLVM.InitializeLanaiAsmParser();
-        LLVM.InitializeMipsAsmParser();
-        LLVM.InitializeMSP430AsmParser();
-        LLVM.InitializePowerPCAsmParser();
-        LLVM.InitializeRISCVAsmParser();
-        LLVM.InitializeSparcAsmParser();
-        LLVM.InitializeSystemZAsmParser();
-        LLVM.InitializeVEAsmParser();
-        LLVM.InitializeWebAssemblyAsmParser();
-        LLVM.InitializeX86AsmParser();
-        
-        // LLVM.InitializeAllAsmPrinters();
-        LLVM.InitializeAArch64AsmPrinter();
-        LLVM.InitializeAMDGPUAsmPrinter();
-        LLVM.InitializeARMAsmPrinter();
-        LLVM.InitializeAVRAsmPrinter();
-        LLVM.InitializeBPFAsmPrinter();
-        LLVM.InitializeHexagonAsmPrinter();
-        LLVM.InitializeLanaiAsmPrinter();
-        LLVM.InitializeMipsAsmPrinter();
-        LLVM.InitializeMSP430AsmPrinter();
-        LLVM.InitializeNVPTXAsmPrinter();
-        LLVM.InitializePowerPCAsmPrinter();
-        LLVM.InitializeRISCVAsmPrinter();
-        LLVM.InitializeSparcAsmPrinter();
-        LLVM.InitializeSystemZAsmPrinter();
-        LLVM.InitializeVEAsmPrinter();
-        LLVM.InitializeWebAssemblyAsmPrinter();
-        LLVM.InitializeX86AsmPrinter();
-        LLVM.InitializeXCoreAsmPrinter();
-        
-        // LLVM.InitializeAllDisassemblers();
-        LLVM.InitializeAArch64Disassembler();
-        LLVM.InitializeAMDGPUDisassembler();
-        LLVM.InitializeARMDisassembler();
-        LLVM.InitializeAVRDisassembler();
-        LLVM.InitializeBPFDisassembler();
-        LLVM.InitializeHexagonDisassembler();
-        LLVM.InitializeLanaiDisassembler();
-        LLVM.InitializeMipsDisassembler();
-        LLVM.InitializeMSP430Disassembler();
-        LLVM.InitializePowerPCDisassembler();
-        LLVM.InitializeRISCVDisassembler();
-        LLVM.InitializeSparcDisassembler();
-        LLVM.InitializeSystemZDisassembler();
-        LLVM.InitializeVEDisassembler();
-        LLVM.InitializeWebAssemblyDisassembler();
-        LLVM.InitializeX86Disassembler();
-        LLVM.InitializeXCoreDisassembler();
+        LLVM.InitializeNativeTarget();
+        LLVM.InitializeNativeAsmParser();
+        LLVM.InitializeNativeAsmPrinter();
+        LLVM.InitializeNativeDisassembler();
     }
     
     private void PrevInitBasicEnv()
     {
+        var triple = LLVMTargetRef.DefaultTriple;
+        _module.Target = triple;
+        
         // c scanf
         var scanfFnRetTy = _context.Int32Type;
         LLVMTypeRef[] scanfFnParamsTy = [LLVMTypeRef.CreatePointer(_context.Int8Type, 0)];
