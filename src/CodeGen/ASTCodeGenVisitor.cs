@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using Cirno.AbstractSyntaxTree;
 using Cirno.DiagnosticTools;
 using Cirno.Lexer;
@@ -183,21 +184,57 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     
     private void PrevInitBasicEnv()
     {
+        // c scanf
+        var scanfFnRetTy = _context.Int32Type;
+        LLVMTypeRef[] scanfFnParamsTy = [LLVMTypeRef.CreatePointer(_context.Int8Type, 0)];
+        var scanfFnTy = LLVMTypeRef.CreateFunction(scanfFnRetTy, scanfFnParamsTy, true);
+        var scanfFn = _module.AddFunction("scanf", scanfFnTy);
+
+        _symbolTable.Add("scanf",
+            new FunctionSymbol(new SyntaxToken(SyntaxKind.FunctionExpression, "scanf", 0, 0), "scanf", scanfFn,
+                scanfFnTy));
+        
+        // c printf
+        var printfFnRetTy = _context.Int32Type;
+        LLVMTypeRef[] printfFnParamsTy = [LLVMTypeRef.CreatePointer(_context.Int8Type, 0)];
+        var printfFnTy = LLVMTypeRef.CreateFunction(printfFnRetTy, printfFnParamsTy, true);
+        var printfFn = _module.AddFunction("printf", printfFnTy);
+
+        _symbolTable.Add("printf",
+            new FunctionSymbol(new SyntaxToken(SyntaxKind.FunctionExpression, "printf", 0, 0), "printf", scanfFn,
+                scanfFnTy));
+
+        // fn input() -> i32
         var inputFnRetTy = _context.Int32Type;
         LLVMTypeRef[] inputFnParamsTy = [];
         var inputFnTy = LLVMTypeRef.CreateFunction(inputFnRetTy, inputFnParamsTy);
         var inputFn = _module.AddFunction("input", inputFnTy);
+
+        var inputEntry = inputFn.AppendBasicBlock("entry");
+        _irBuilder.PositionAtEnd(inputEntry);
+        var inputValue = _irBuilder.BuildAlloca(_context.Int32Type);
+        var inputFormat = _irBuilder.BuildGlobalStringPtr("%d");
+        _irBuilder.BuildCall2(scanfFnTy, scanfFn, [inputFormat, inputValue]);
+        _irBuilder.BuildRet(_irBuilder.BuildLoad2(_context.Int32Type, inputValue));
         
         _symbolTable.Add("input",
             new FunctionSymbol(new SyntaxToken(SyntaxKind.FunctionExpression, "input", 0, 0), "input", inputFn, inputFnTy));
         
+        // fn output(x: i32)
         var outputFnRetTy = _context.VoidType;
         LLVMTypeRef[] outputFnParamsTy = [_context.Int32Type];
         var outputFnTy = LLVMTypeRef.CreateFunction(outputFnRetTy, outputFnParamsTy);
         var outputFn = _module.AddFunction("output", outputFnTy);
+
+        var outputEntry = outputFn.AppendBasicBlock("entry");
+        _irBuilder.PositionAtEnd(outputEntry);
+        _irBuilder.BuildCall2(printfFnTy, printfFn, [_irBuilder.BuildGlobalStringPtr("%d\n"), outputFn.Params[0]]);
+        _irBuilder.BuildRetVoid();
         
         _symbolTable.Add("output",
             new FunctionSymbol(new SyntaxToken(SyntaxKind.FunctionExpression, "output", 0, 0), "output", outputFn, outputFnTy));
+        
+        _irBuilder.ClearInsertionPosition();
     }
     
     ~CodeGenVisitor()
