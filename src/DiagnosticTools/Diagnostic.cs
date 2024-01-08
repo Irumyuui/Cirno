@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics.SymbolStore;
 using Cirno.Lexer;
 using Cirno.SyntaxSymbol;
@@ -31,33 +32,44 @@ public readonly record struct Diagnostic(
     
     public static Diagnostic RaiseError(in TextLocation location, DiagnosticKind kind, string message = "")
         => new Diagnostic(location, kind, message);
+
+    public void Dump()
+    {
+        Console.ResetColor();
+
+        Console.Write($"{Location} ");
+        
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.Write($"{Kind}");
+        Console.ResetColor();
+        
+        Console.WriteLine($": {Message}");
+    }
+
+    public void Dump(in string[] text)
+    {
+        Dump();
+        Console.WriteLine("|");
+        Console.WriteLine($"|  {text[Location.Line]}");
+        Console.WriteLine("|");
+    }
 }
 
 public sealed class DiagnosticList : System.Collections.Generic.IEnumerable<Diagnostic>
 {
     private readonly System.Collections.Generic.List<Diagnostic> _diagnostics;
-
-    // private readonly string[] _text;
     
     public DiagnosticList(in DiagnosticList list)
     {
         _diagnostics = [..list._diagnostics];
-        // _text = list._text;
     }
 
     public DiagnosticList(System.Collections.Generic.IEnumerable<Diagnostic> diagnostics)
     {
         _diagnostics = [..diagnostics];
-        // _text = text;
     }
 
     public DiagnosticList() => _diagnostics = [];
-
-    // public DiagnosticList(in string[] text)
-    // {
-    //     _diagnostics = [];
-    //     // _text = text;
-    // }
 
     public int Count => _diagnostics.Count;
 
@@ -122,19 +134,18 @@ public sealed class DiagnosticList : System.Collections.Generic.IEnumerable<Diag
     {
         Report(location, DiagnosticKind.SemanticError, $"Expect variable {expectVariableName} is not left value.");
     }
-    
-    // public void ReportNot
 
-    public void ReportCodeGenError(in TextLocation location, string message)
+    public void Dump()
     {
-        Report(location, DiagnosticKind.CodeGenError, message);
+        foreach (var item in _diagnostics)
+            item.Dump();
     }
-    
-    public static void PrintDiagnostics(System.Collections.Generic.IEnumerable<Diagnostic> diagnostics)
+
+    public void Dump(string[] text)
     {
-        foreach (var diagnostic in diagnostics)
+        foreach (var item in _diagnostics)
         {
-            Console.WriteLine(diagnostics);
+            item.Dump(text);
         }
     }
 }
