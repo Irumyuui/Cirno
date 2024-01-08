@@ -43,7 +43,7 @@ string[] lines =
     "int y;",
     "x = input();",
     "y = input();",
-    "output(gcd(x, y));",
+    "output(gcd(gcd, y));",
     "}",
 ];
 
@@ -136,7 +136,7 @@ visitor.Diagnostics.Dump(lines);
 
 visitor.Dump();
 
-visitor.Verify();
+visitor.Verify(out _);
 
 //DiagnosticList.PrintDiagnostics(visitor.Diagnostics);
 

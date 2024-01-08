@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using Cirno.AbstractSyntaxTree;
 using Cirno.DiagnosticTools;
 using Cirno.Lexer;
@@ -43,10 +44,14 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     private bool _isDisposed;
     private EnvSymbolTable _symbolTable;
     private Cirno.DiagnosticTools.DiagnosticList _diagnostics;
+    private string _triple;
+    private LLVMTargetRef _target;
+    private LLVMTargetMachineRef _targetMachine;
     
     public Cirno.DiagnosticTools.DiagnosticList Diagnostics => _diagnostics;
     public LLVMContextRef Context => _context;
     public LLVMModuleRef Module => _module;
+    
     
     public CodeGenVisitor(string moduleName, DiagnosticTools.DiagnosticList diagnostics)
     {
@@ -58,6 +63,15 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         _diagnostics = new DiagnosticList(diagnostics);
 
         InitTarget();
+        
+        _triple = LLVMTargetRef.DefaultTriple;
+        _target = LLVMTargetRef.GetTargetFromTriple(_triple);
+        _targetMachine = _target.CreateTargetMachine(
+            _triple, "generic", "",
+            LLVMCodeGenOptLevel.LLVMCodeGenLevelNone,
+            LLVMRelocMode.LLVMRelocDefault,
+            LLVMCodeModel.LLVMCodeModelDefault
+        );
         
         PrevInitBasicEnv();
     }
@@ -72,8 +86,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     
     private void PrevInitBasicEnv()
     {
-        var triple = LLVMTargetRef.DefaultTriple;
-        _module.Target = triple;
+        _module.Target = _triple;
         
         // c scanf
         var scanfFnRetTy = _context.Int32Type;
@@ -776,7 +789,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return null;
         }
 
-        if (result.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind) {
+        if (result.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind || result.TypeKind is not ValueTypeKind.Int) {
             _diagnostics.ReportNotLeftValueError(new TextLocation(node.Position.Line, node.Position.Col), node.Name);
             return null;
         }
@@ -920,8 +933,29 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         return null;
     }
 
-    public void Verify()
+    public bool Verify(out string message)
     {
-        _module.Verify(LLVMVerifierFailureAction.LLVMAbortProcessAction);
+        // _module.Verify(LLVMVerifierFailureAction.LLVMAbortProcessAction);
+        var result = _module.TryVerify(LLVMVerifierFailureAction.LLVMAbortProcessAction, out message);
+        return result;
+    }
+
+    public void EmitToFile(string fileName)
+    {
+        _targetMachine.EmitToFile(_module, fileName, LLVMCodeGenFileType.LLVMObjectFile);
+    }
+
+    public async Task LinkToExeFile(string fileName, string outputFileName)
+    {
+        using var linkProcess = System.Diagnostics.Process.Start("clang", [fileName, "-o", outputFileName]);
+        await linkProcess.WaitForExitAsync();
+    }
+
+    public async Task CompileIR2ExeFile(string targetFileName)
+    {
+        var objFileName = $"{targetFileName}.o";
+
+        EmitToFile(objFileName);
+        await LinkToExeFile(objFileName, targetFileName);
     }
 }
