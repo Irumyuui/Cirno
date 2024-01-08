@@ -48,10 +48,29 @@ public readonly record struct Diagnostic(
 
     public void Dump(in string[] text)
     {
-        Dump();
-        Console.WriteLine("|");
-        Console.WriteLine($"|  {text[Location.Line]}");
-        Console.WriteLine("|");
+        Console.ForegroundColor = ConsoleColor.White;
+        var position = Location.ToString();
+        Console.Write(position);
+        Console.Write(" ");
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.Write($"{Kind}");
+        Console.ResetColor();
+        
+        Console.Write(": ");
+        Console.WriteLine(Message);
+
+        var tabBlock = new string(' ', Math.Max(0, position.Length - 1));
+
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.Write($"{tabBlock}|  ");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"{text[Location.Line]}");
+
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.WriteLine($"{tabBlock}| ");
+        
+        Console.ResetColor();
     }
 }
 

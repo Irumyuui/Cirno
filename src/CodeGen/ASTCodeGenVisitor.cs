@@ -398,58 +398,38 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         if (node.Args.Length != func.Params.Length)
         {
-            _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col), $"Insufficient parameters for function {node.Name} call.");
+            _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
+                $"Insufficient parameters for function {node.Name} call.");
             return null;
         }
 
-        //var argsArr = node.Args.Select(expr => expr.Accept(this, entryBasicBlock, exitBasicBlock)).ToArray();
-        //if (argsArr.Any(item => item?.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind || item?.TypeOf is
-        //        { Kind: LLVMTypeKind.LLVMPointerTypeKind, ElementType.Kind: LLVMTypeKind.LLVMIntegerTypeKind }))
-        //{
-        //    _diagnostics.ReportCallFunctionArgsNotFullError(new TextLocation(node.Position.Line, node.Position.Col),
-        //        node.Name, node.Args.Length);
-        //    return null;
-        //}
-
-        //var args = argsArr.Select(item => item!.Value).ToArray();
-        //return _irBuilder.BuildCall2(func.TypeOf.ElementType, func, args);
-
-        //System.Collections.Generic.List<LLVMValueRef> argsList = [];
-
         Span<LLVMValueRef> args = stackalloc LLVMValueRef[func.Params.Length];
-        bool error = false;
-        for (int i = 0; i < args.Length; i++)
+        var error = false;
+        for (var i = 0; i < args.Length; i++)
         {
             var result = node.Args[i].Accept(this);
-            if (result is null || error is true)
+            if (result is null || error)
             {
                 error = true;
                 continue;
             }
 
-            //if (result is null)
-            //{
-            //    _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
-            //        $"Insufficient parameters for function {node.Name} call.");
-            //    return null;
-            //}
+            args[i] = result.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind
+                ? _irBuilder.BuildLoad2(func.Params[i].TypeOf, result.Value)
+                : result.Value;
 
-            if (result.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind)
+            if (args[i].TypeOf.Kind != func.Params[i].TypeOf.Kind)
             {
-                args[i] = _irBuilder.BuildLoad2(func.Params[i].TypeOf, result.Value);
-            }
-            else
-            {
-                args[i] = result.Value;
+                var expectTypeKind = func.Params[i].TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind
+                    ? ValueTypeKind.Int
+                    : ValueTypeKind.IntArray;
+
+                _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Line),
+                    $"Wrong parameter {i} when calling function {node.Name}, expected to be {expectTypeKind}");
             }
         }
 
-        if (error)
-        {
-            return null;
-        }
-
-        return _irBuilder.BuildCall2(symbol.Type, func, args.ToArray());
+        return error ? null : _irBuilder.BuildCall2(symbol.Type, func, args.ToArray());
     }
 
     public LLVMValueRef? Visit(CompoundStatementNode node)
