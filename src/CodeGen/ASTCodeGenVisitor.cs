@@ -60,7 +60,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     private void PrevInitBasicEnv()
     {
         var inputFnRetTy = _context.Int32Type;
-        LLVMTypeRef[] inputFnParamsTy = [LLVMTypeRef.CreatePointer(_context.Int8Type, 0)];
+        LLVMTypeRef[] inputFnParamsTy = [];
         var inputFnTy = LLVMTypeRef.CreateFunction(inputFnRetTy, inputFnParamsTy);
         var inputFn = _module.AddFunction("input", inputFnTy);
         

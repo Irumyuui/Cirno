@@ -9,7 +9,12 @@
 
   <ItemGroup>
     <PackageReference Include="libLLVM" Version="16.0.6" />
+    <PackageReference Include="libLLVM.runtime.win-x64" Version="16.0.6" />
     <PackageReference Include="LLVMSharp.Interop" Version="16.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="test\" />
   </ItemGroup>
 
 </Project>
