@@ -14,6 +14,12 @@ public enum ValueTypeKind
     IntArray,
 }
 
+public enum ValueScopeKind
+{
+    Global,
+    Local
+}
+
 public interface ISymbol
 {
     SyntaxToken Token { get; }
@@ -21,6 +27,7 @@ public interface ISymbol
     LLVMSharp.Interop.LLVMValueRef Value { get; set; }
     LLVMSharp.Interop.LLVMTypeRef Type { get; set; }
     ValueTypeKind TypeKind { get; }
+    ValueScopeKind ScopeKind { get; }
 }
 
 public struct FunctionSymbol : ISymbol
@@ -30,15 +37,19 @@ public struct FunctionSymbol : ISymbol
     public LLVMValueRef Value { get; set; }
     public LLVMTypeRef Type { get; set; }
 
-    public ValueTypeKind TypeKind => ValueTypeKind.Function;
-    public LLVMValueRef[] Params => Value.Params;
+    public readonly ValueTypeKind TypeKind => ValueTypeKind.Function;
 
-    public FunctionSymbol(SyntaxToken token, string name, LLVMValueRef value, LLVMTypeRef type)
+    public readonly ValueScopeKind ScopeKind { get; }
+
+    public readonly LLVMValueRef[] Params => Value.Params;
+
+    public FunctionSymbol(SyntaxToken token, string name, LLVMValueRef value, LLVMTypeRef type, ValueScopeKind scopeKind = ValueScopeKind.Global)
     {
         Token = token;
         Name = name;
         Value = value;
         Type = type;
+        ScopeKind = scopeKind;
         // TypeKind = typeKind;
     }
 }
@@ -52,13 +63,16 @@ public struct ValueSymbol : ISymbol
     
     public ValueTypeKind TypeKind { get; }
 
-    public ValueSymbol(SyntaxToken token, string name, LLVMValueRef value, LLVMTypeRef type, ValueTypeKind typeKind)
+    public ValueScopeKind ScopeKind { get; }
+
+    public ValueSymbol(SyntaxToken token, string name, LLVMValueRef value, LLVMTypeRef type, ValueTypeKind typeKind, ValueScopeKind scopeKind)
     {
         Token = token;
         Name = name;
         Value = value;
         Type = type;
         TypeKind = typeKind;
+        ScopeKind = scopeKind;
     }
 }
 

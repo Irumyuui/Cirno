@@ -60,7 +60,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     private void PrevInitBasicEnv()
     {
         var inputFnRetTy = _context.Int32Type;
-        LLVMTypeRef[] inputFnParamsTy = [_context.VoidType];
+        LLVMTypeRef[] inputFnParamsTy = [LLVMTypeRef.CreatePointer(_context.Int8Type, 0)];
         var inputFnTy = LLVMTypeRef.CreateFunction(inputFnRetTy, inputFnParamsTy);
         var inputFn = _module.AddFunction("input", inputFnTy);
         
@@ -110,13 +110,6 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         _module.Dump();
     }
     
-    /// <summary>
-    /// 数组下标访问
-    /// </summary>
-    /// <param name="node"></param>
-    /// <param name="entryBasicBlock"></param>
-    /// <param name="exitBasicBlock"></param>
-    /// <returns>i32*</returns>
     public LLVMValueRef? Visit(ArraySubscriptExprNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
         if (!_symbolTable.TryGetSymbolFromLinkTable(node.Name, out var arrayValue))
@@ -131,7 +124,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return null;
         }
         
-        if (arrayValue?.Value.TypeOf.ElementType.Kind is not LLVMTypeKind.LLVMPointerTypeKind)
+        if (arrayValue?.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind)
         {
             _diagnostics.ReportNotExpectType(new TextLocation(node.Position.Line, node.Position.Col),
                 arrayValue?.Name ?? "", ValueTypeKind.IntArray, arrayValue?.TypeKind ?? ValueTypeKind.Void);
@@ -149,15 +142,15 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         var arr = arrayValue!.Value;
         
         var index = maybeIndex.Value;
-        if (index.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && index.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
+        if (index.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind)
         {
-            var idx = _irBuilder.BuildLoad2(index.TypeOf.ElementType, index);
-            var item = _irBuilder.BuildGEP2(arr.TypeOf.ElementType, arr, [LLVMValueRef.CreateConstInt(_context.Int32Type, 0), idx]);
+            var idx = _irBuilder.BuildLoad2(_context.Int32Type, index);
+            var item = _irBuilder.BuildGEP2(_context.Int32Type, arr, [idx]);
             return item;
         }
         else if (index.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
         {
-            var item = _irBuilder.BuildGEP2(arr.TypeOf.ElementType, arr, [LLVMValueRef.CreateConstInt(_context.Int32Type, 0), index]);
+            var item = _irBuilder.BuildInBoundsGEP2(_context.Int32Type, arr, [index]);
             return item;
         }
         
@@ -179,6 +172,9 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public LLVMValueRef? Visit(BinaryOperatorNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
+        System.Diagnostics.Debug.WriteLine("In BinaryOperatorNode");
+        System.Diagnostics.Debug.WriteLine(_module);
+
         var leftResult = node.Left.Accept(this, entryBasicBlock, exitBasicBlock);
         var rightResult = node.Right!.Accept(this, entryBasicBlock, exitBasicBlock);
 
@@ -219,10 +215,9 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
                 return left;
             }
 
-            if (right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
-                right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
+            if (right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind)
             {
-                _irBuilder.BuildStore(_irBuilder.BuildLoad2(right.TypeOf.ElementType, right), left);
+                _irBuilder.BuildStore(_irBuilder.BuildLoad2(_context.Int32Type, right), left);
                 return left;
             }
 
@@ -238,31 +233,26 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     
     private LLVMValueRef? BuildAdd(LLVMValueRef left, LLVMValueRef right, BinaryOperatorNode node)
     {
-        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildNSWAdd(
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
-        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildNSWAdd(
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
                 right
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
-                   right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildNSWAdd(
                 left,
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildNSWAdd(left, right);
         }
 
@@ -272,31 +262,26 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     private LLVMValueRef? BuildSub(LLVMValueRef left, LLVMValueRef right, BinaryOperatorNode node)
     {
-        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildNSWSub(
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
-        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildNSWSub(
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
                 right
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
-                   right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildNSWSub(
                 left,
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildNSWSub(left, right);
         }
 
@@ -306,31 +291,26 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     
     private LLVMValueRef? BuildMul(LLVMValueRef left, LLVMValueRef right, BinaryOperatorNode node)
     {
-        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildNSWMul(
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
-        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildNSWMul(
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
                 right
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
-                   right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildNSWMul(
                 left,
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildNSWMul(left, right);
         }
 
@@ -340,31 +320,26 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     
     private LLVMValueRef? BuildDiv(LLVMValueRef left, LLVMValueRef right, BinaryOperatorNode node)
     {
-        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildSDiv(
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
-        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildSDiv(
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
                 right
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
-                   right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildSDiv(
                 left,
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildSDiv(left, right);
         }
 
@@ -374,34 +349,29 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     private LLVMValueRef? BuildCmp(LLVMValueRef left, LLVMValueRef right, LLVMIntPredicate opt, BinaryOperatorNode node)
     {
-        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+            right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildICmp(
                 opt,
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
-        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && left.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildICmp(
                 opt,
-                _irBuilder.BuildLoad2(left.TypeOf.ElementType, left),
+                _irBuilder.BuildLoad2(_context.Int32Type, left),
                 right
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind &&
-                   right.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind) {
             return _irBuilder.BuildICmp(
                 opt,
                 left,
-                _irBuilder.BuildLoad2(right.TypeOf.ElementType, right)
+                _irBuilder.BuildLoad2(_context.Int32Type, right)
             );
         } else if (left.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind &&
-                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+                   right.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind) {
             return _irBuilder.BuildICmp(opt, left, right);
         }
 
@@ -419,22 +389,67 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         }
 
         var func = symbol!.Value;
-        if (func.TypeOf.ElementType.Kind is not LLVMTypeKind.LLVMFunctionTypeKind)
+        if (symbol.TypeKind is not ValueTypeKind.Function)
+        {
+            _diagnostics.ReportNotExpectType(new TextLocation(node.Position.Line, node.Position.Col), node.Name,
+                ValueTypeKind.Function, symbol.TypeKind);
+            return null;
+        }
+
+        if (node.Args.Length != func.Params.Length)
+        {
+            _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col), $"Insufficient parameters for function {node.Name} call.");
+            return null;
+        }
+
+        //var argsArr = node.Args.Select(expr => expr.Accept(this, entryBasicBlock, exitBasicBlock)).ToArray();
+        //if (argsArr.Any(item => item?.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind || item?.TypeOf is
+        //        { Kind: LLVMTypeKind.LLVMPointerTypeKind, ElementType.Kind: LLVMTypeKind.LLVMIntegerTypeKind }))
+        //{
+        //    _diagnostics.ReportCallFunctionArgsNotFullError(new TextLocation(node.Position.Line, node.Position.Col),
+        //        node.Name, node.Args.Length);
+        //    return null;
+        //}
+
+        //var args = argsArr.Select(item => item!.Value).ToArray();
+        //return _irBuilder.BuildCall2(func.TypeOf.ElementType, func, args);
+
+        //System.Collections.Generic.List<LLVMValueRef> argsList = [];
+
+        Span<LLVMValueRef> args = stackalloc LLVMValueRef[func.Params.Length];
+        bool error = false;
+        for (int i = 0; i < args.Length; i++)
+        {
+            var result = node.Args[i].Accept(this, entryBasicBlock, exitBasicBlock);
+            if (result is null || error is true)
+            {
+                error = true;
+                continue;
+            }
+
+            //if (result is null)
+            //{
+            //    _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
+            //        $"Insufficient parameters for function {node.Name} call.");
+            //    return null;
+            //}
+
+            if (result.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind)
+            {
+                args[i] = _irBuilder.BuildLoad2(func.Params[i].TypeOf, result.Value);
+            }
+            else
+            {
+                args[i] = result.Value;
+            }
+        }
+
+        if (error)
         {
             return null;
         }
 
-        var argsArr = node.Args.Select(expr => expr.Accept(this, entryBasicBlock, exitBasicBlock)).ToArray();
-        if (argsArr.Any(item => item?.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind || item?.TypeOf is
-                { Kind: LLVMTypeKind.LLVMPointerTypeKind, ElementType.Kind: LLVMTypeKind.LLVMIntegerTypeKind }))
-        {
-            _diagnostics.ReportCallFunctionArgsNotFullError(new TextLocation(node.Position.Line, node.Position.Col),
-                node.Name, node.Args.Length);
-            return null;
-        }
-
-        var args = argsArr.Select(item => item!.Value).ToArray();
-        return _irBuilder.BuildCall2(func.TypeOf.ElementType, func, args);
+        return _irBuilder.BuildCall2(symbol.Type, func, args.ToArray());
     }
 
     public LLVMValueRef? Visit(CompoundStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
@@ -473,6 +488,8 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     public LLVMValueRef? Visit(FunctionDeclarationNode node, LLVMBasicBlockRef? entryBasicBlock,
         LLVMBasicBlockRef? exitBasicBlock)
     {
+        System.Diagnostics.Debug.WriteLine(_module);
+
         if (node.Parameters.Select(item => item.Name).Distinct().Count() < node.Parameters.Length)
         {
             _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
@@ -528,7 +545,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         _symbolTable = new EnvSymbolTable(_symbolTable);
 
-        var entry = func.AppendBasicBlock("");
+        var entry = func.AppendBasicBlock("entry");
         _irBuilder.PositionAtEnd(entry);
 
         if (node.Body.DeclarationStatement.Length is 0 && node.Body.ExpressionStatement.Length is 0)
@@ -540,47 +557,61 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
                 $"Function {node.Name} has no return value.");
             return _irBuilder.BuildRet(LLVMValueRef.CreateConstInt(_context.Int32Type, 1, true));
         }
-        
+
+        //bool hasBrokenReturn = false;
+
         for (int i = 0; i < func.Params.Length; i++)
         {
             var (item, name) = (func.Params[i], node.Parameters[i].Name);
 
-            var value = _irBuilder.BuildAlloca(item.TypeOf);
+            var value = _irBuilder.BuildAlloca(item.TypeOf, name);
             _irBuilder.BuildStore(item, value);
             _symbolTable.Add(name,
                 new ValueSymbol(new SyntaxToken(SyntaxKind.Identifier, name, node.Position.Line, node.Position.Col),
                     name, value, value.TypeOf,
-                    item.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind ? ValueTypeKind.IntArray : ValueTypeKind.Int));
+                    item.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind ? ValueTypeKind.IntArray : ValueTypeKind.Int, ValueScopeKind.Local));
         }
         
-        var compBasicBlock = func.AppendBasicBlock("");
+        var compBasicBlock = func.AppendBasicBlock("comps");
         _irBuilder.BuildBr(compBasicBlock);
+        _irBuilder.PositionAtEnd(compBasicBlock);
 
-        var result = node.Body.Accept(this, compBasicBlock, exitBasicBlock);
-
-        if (result?.TypeOf.Kind is not LLVMTypeKind.LLVMVoidTypeKind)
+        var hasBreakRet = false;
+        foreach (var next in node.Body.DeclarationStatement)
         {
-            if (funcRetTy.Kind is LLVMTypeKind.LLVMVoidTypeKind) 
+            next.Accept(this, entryBasicBlock, exitBasicBlock);
+        }
+
+        foreach (var next in node.Body.ExpressionStatement)
+        {
+            next.Accept(this, entryBasicBlock, exitBasicBlock);
+            if (next is ReturnStatementNode)
+            {
+                hasBreakRet = true;
+                break;
+            }
+        }
+
+        //_ = node.Body.Accept(this, compBasicBlock, exitBasicBlock);
+
+        //System.Diagnostics.Debug.WriteLine(_module);
+
+        if (!hasBreakRet) {
+            if (funcRetTy.Kind is LLVMTypeKind.LLVMVoidTypeKind)
                 return _irBuilder.BuildRetVoid();
-            
+
             _diagnostics.ReportSemanticWarning(new TextLocation(node.Position.Line, node.Position.Col),
                 $"Function {node.Name} has no return value.");
             return _irBuilder.BuildRet(LLVMValueRef.CreateConstInt(_context.Int32Type, 1, true));
         }
-        
+
         _symbolTable = _symbolTable.PrevTable!;
         
-        // throw new NotImplementedException();
         return null;
     }
 
     public LLVMValueRef? Visit(IfStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
-        // if (_symbolTable.CurrentFunction is null)
-        // {
-        //     return null;
-        // }
-        
         var result = node.Expr.Accept(this, entryBasicBlock, exitBasicBlock);
         if (result is null)
         {
@@ -603,14 +634,16 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         var func = _irBuilder.InsertBlock.Parent;
         
-        var thenEntryBlock = func.AppendBasicBlock("");
-        var elseEntryBlock = func.AppendBasicBlock("");
-        var mergeEntryBlock = func.AppendBasicBlock("");
+        var thenEntryBlock = func.AppendBasicBlock("if_then");
+        var elseEntryBlock = func.AppendBasicBlock("if_else");
+        var mergeEntryBlock = func.AppendBasicBlock("if_merge");
 
         _irBuilder.BuildCondBr(_irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntNE, ret,
             LLVMValueRef.CreateConstInt(ret.TypeOf, 1)), thenEntryBlock, elseEntryBlock);
         
         // then
+        System.Diagnostics.Debug.WriteLine("In if stmt => then");
+        System.Diagnostics.Debug.WriteLine(_module);
         _irBuilder.PositionAtEnd(thenEntryBlock);
         if (node.Body.Length >= 1)
         {
@@ -618,6 +651,8 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         }
         _irBuilder.BuildBr(mergeEntryBlock);
 
+        System.Diagnostics.Debug.WriteLine("In if stmt => else");
+        System.Diagnostics.Debug.WriteLine(_module);
         // else
         _irBuilder.PositionAtEnd(elseEntryBlock);
         if (node.Body.Length >= 2)
@@ -625,6 +660,9 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock);
         }
         _irBuilder.BuildBr(mergeEntryBlock);
+
+        System.Diagnostics.Debug.WriteLine("In if stmt => merge");
+        System.Diagnostics.Debug.WriteLine(_module);
 
         _irBuilder.PositionAtEnd(mergeEntryBlock);
 
@@ -638,7 +676,6 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return LLVMValueRef.CreateConstInt(_context.Int32Type, Convert.ToUInt64(long.Abs(v1)), v1 < 0);
         }
 
-        // throw new Exception($"Error Integer Type {node.Value?.GetType().Name}");
         _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
             $"Error Integer Type {node.Value?.GetType().Name}");
         return null;
@@ -646,7 +683,6 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public LLVMValueRef? Visit(LiteralNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
-        // throw new NotImplementedException();
         if (!_symbolTable.TryGetSymbolFromLinkTable(node.Name, out var result) || result is null)
         {
             _diagnostics.ReportUndefinedVariableError(new TextLocation(node.Position.Line, node.Position.Col),
@@ -654,15 +690,12 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return null;
         }
 
-        if (result.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind &&
-            result.Value.TypeOf.ElementType.Kind is not LLVMTypeKind.LLVMIntegerTypeKind)
-        {
+        if (result.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind) {
             _diagnostics.ReportNotLeftValueError(new TextLocation(node.Position.Line, node.Position.Col), node.Name);
             return null;
         }
 
-        var rvalue = _irBuilder.BuildLoad2(result.Value.TypeOf.ElementType, result.Value);
-        return rvalue;
+        return result.Value;
     }
 
     public LLVMValueRef? Visit(ProgramNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
@@ -724,21 +757,27 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             value = _irBuilder.BuildAlloca(valueTy, node.Name);
         }
 
+        System.Diagnostics.Debug.WriteLine(value.TypeOf);
+
         _symbolTable.Add(node.Name,
             new ValueSymbol(new SyntaxToken(SyntaxKind.Identifier, node.Name, node.Position.Line, node.Position.Col),
-                node.Name, value, valueTy, node.Type is LiteralType.Int ? ValueTypeKind.Int : ValueTypeKind.IntArray));
+                node.Name, value, valueTy, node.Type is LiteralType.Int ? ValueTypeKind.Int : ValueTypeKind.IntArray, _symbolTable.PrevTable is null ? ValueScopeKind.Global : ValueScopeKind.Local));
+
+        System.Diagnostics.Debug.WriteLine("In VariableDeclarationNode");
+        System.Diagnostics.Debug.WriteLine(_module);
 
         return null;
     }
 
     public LLVMValueRef? Visit(ReturnStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
-        if (entryBasicBlock is null)
-        {
-            throw new ArgumentNullException(nameof(entryBasicBlock));
-        }
+        //if (entryBasicBlock is null)
+        //{
+        //    throw new ArgumentNullException(nameof(entryBasicBlock));
+        //}
         
-        _irBuilder.PositionAtEnd(entryBasicBlock.Value);
+        //_irBuilder.PositionAtEnd(entryBasicBlock.Value);
+        
         var result = node.ReturnExpr?.Accept(this, entryBasicBlock, exitBasicBlock);
         if (result is null)
         {
@@ -747,7 +786,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         if (result.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind)
         {
-            var basicType = result.Value.TypeOf.ElementType;
+            var basicType = _context.Int32Type;
             return _irBuilder.BuildRet(
                     _irBuilder.BuildLoad2(basicType, result.Value)
                 );
@@ -760,15 +799,19 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public LLVMValueRef? Visit(WhileStatementNode node, LLVMBasicBlockRef? entryBasicBlock, LLVMBasicBlockRef? exitBasicBlock)
     {
+        System.Diagnostics.Debug.WriteLine(_module);
+
         // throw new NotImplementedException();
         
         var func = _irBuilder.InsertBlock.Parent;
         
-        var logicBasicBlock = func.AppendBasicBlock("");
-        var loopBasicBlock = func.AppendBasicBlock("");
-        var loopEndBasicBlock = func.AppendBasicBlock("");
+        var logicBasicBlock = func.AppendBasicBlock("logic_comp");
+        var loopBasicBlock = func.AppendBasicBlock("loop");
+        var loopEndBasicBlock = func.AppendBasicBlock("loop_end");
 
         _irBuilder.BuildBr(logicBasicBlock);
+
+        _irBuilder.PositionAtEnd(logicBasicBlock);
         var comp = node.Expr.Accept(this, entryBasicBlock, exitBasicBlock);
         if (comp is null)
         {
@@ -790,5 +833,10 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         _irBuilder.PositionAtEnd(loopEndBasicBlock);
 
         return null;
+    }
+
+    public void Verify()
+    {
+        _module.Verify(LLVMVerifierFailureAction.LLVMAbortProcessAction);
     }
 }

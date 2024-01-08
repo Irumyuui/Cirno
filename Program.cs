@@ -9,7 +9,7 @@ string[] lines =
 [
     "int x[1];",
      "int minloc(int a[], int low, int high) {",
-     "    int i; int k;",
+     "    int i; int k; int x;",
      "    k = low; x = a[low];",
      "    while (i < high) {",
      "           int xx;",
@@ -17,13 +17,13 @@ string[] lines =
      "            x = a[i]; k = i;",
      "        } else {",
     "           k = 2;",
-    "           }",
+    "         }",
      "        i = i + 1 * 2;",
      "    }",
      "    return k;",
      "}",
     "int main(void) {",
-    "  ",
+    "  return minloc(x, low, high);",
     "}",
 ];
 
@@ -50,7 +50,16 @@ astTree.Dump();
 
 var visitor = new CodeGenVisitor("main", parser.Diagnostics);
 astTree.Root.Accept(visitor, null, null);
+
+PrintDiagnostics(visitor.Diagnostics);
+
 visitor.Dump();
+
+visitor.Verify();
+
+//DiagnosticList.PrintDiagnostics(visitor.Diagnostics);
+
+
 
 return;
 
