@@ -502,6 +502,10 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
                             LLVMValueRef.CreateConstInt(_context.Int32Type, 0),
                             LLVMValueRef.CreateConstInt(_context.Int32Type, 0)
                         ]);
+                    } 
+                    else if (result.Value.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMPointerTypeKind)
+                    {
+                        args[i] = _irBuilder.BuildLoad2(result.Value.TypeOf.ElementType, result.Value);
                     }
                     else
                     {
