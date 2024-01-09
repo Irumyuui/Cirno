@@ -204,6 +204,10 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         }
 
         var arr = arrayValue!.Value;
+        if (arrayValue.ScopeKind is ValueScopeKind.Local)
+        {
+            arr = _irBuilder.BuildLoad2(arrayValue.Type, arr);
+        }
         
         var index = maybeIndex.Value;
         if (index.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind)
@@ -214,7 +218,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         }
         else if (index.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
         {
-            var item = _irBuilder.BuildInBoundsGEP2(_context.Int32Type, arr, [index]);
+            var item = _irBuilder.BuildGEP2(_context.Int32Type, arr, [index]);
             return item;
         }
         
@@ -478,9 +482,84 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
                 continue;
             }
 
-            args[i] = result.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind
-                ? _irBuilder.BuildLoad2(func.Params[i].TypeOf, result.Value)
-                : result.Value;
+            if (func.Params[i].TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind)
+            {
+                if (result.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind)
+                {
+                    _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Line),
+                        $"Wrong parameter {i} when calling function {node.Name}, expected to be {ValueTypeKind.IntArray}");
+                    error = true;
+                    continue;
+                }
+
+                if (result.Value.TypeOf.ElementType.Kind is not LLVMTypeKind.LLVMArrayTypeKind)
+                {
+                    if (result.Value.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMPointerTypeKind && result.Value.TypeOf.ElementType.ElementType.Kind is LLVMTypeKind.LLVMArrayTypeKind)
+                    {
+                        var temp = _irBuilder.BuildLoad2(result.Value.TypeOf.ElementType, result.Value);
+                        args[i] = _irBuilder.BuildGEP2(result.Value.TypeOf.ElementType.ElementType, temp,
+                        [
+                            LLVMValueRef.CreateConstInt(_context.Int32Type, 0),
+                            LLVMValueRef.CreateConstInt(_context.Int32Type, 0)
+                        ]);
+                    }
+                    else
+                    {
+                        _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Line),
+                            $"Wrong parameter {i} when calling function {node.Name}, expected to be {ValueTypeKind.IntArray}");
+                        error = true;
+                        continue;
+                    }
+                } 
+                else if (result.Value.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMArrayTypeKind)
+                {
+                    args[i] = _irBuilder.BuildGEP2(result.Value.TypeOf.ElementType, result.Value,
+                    [
+                        LLVMValueRef.CreateConstInt(_context.Int32Type, 0),
+                        LLVMValueRef.CreateConstInt(_context.Int32Type, 0)
+                    ]);
+                }
+                else
+                {
+                    _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Line),
+                        $"Wrong parameter {i} when calling function {node.Name}, expected to be {ValueTypeKind.IntArray}");
+                    error = true;
+                    continue;
+                }
+                
+                // if (result.Value == result.Value.IsAGlobalVariable)
+                // {
+                //     args[i] = result.Value;
+                // }
+                // else if (result.Value.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMArrayTypeKind)
+                // {
+                //     
+                // }
+            }
+            else  
+            {
+                // number
+                if (result.Value.TypeOf.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
+                {
+                    args[i] = result.Value;
+                } else if (result.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind && result.Value.TypeOf.ElementType.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
+                {
+                    args[i] = _irBuilder.BuildLoad2(result.Value.TypeOf.ElementType, result.Value);
+                }
+                else
+                {
+                    _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Line),
+                        $"Wrong parameter {i} when calling function {node.Name}, expected to be {ValueTypeKind.Int}");
+                    error = true;
+                    continue;
+                }
+            }
+            
+            // var zxx = result.Value == result.Value.IsAGlobalVariable;
+            //
+            // args[i] = result.Value.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind
+            //     ? _irBuilder.BuildLoad2(func.Params[i].TypeOf, result.Value)
+            //     : result.Value;
 
             if (args[i].TypeOf.Kind != func.Params[i].TypeOf.Kind)
             {
@@ -597,6 +676,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         if (node.Body.DeclarationStatement.Length is 0 && node.Body.ExpressionStatement.Length is 0)
         {
+            _symbolTable = _symbolTable.PrevTable!;
             if (funcRetTy.Kind is LLVMTypeKind.LLVMVoidTypeKind) 
                 return _irBuilder.BuildRetVoid();
             
@@ -613,7 +693,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             _irBuilder.BuildStore(item, value);
             _symbolTable.Add(name,
                 new ValueSymbol(new SyntaxToken(SyntaxKind.Identifier, name, node.Position.Line, node.Position.Col),
-                    name, value, value.TypeOf,
+                    name, value, item.TypeOf,
                     item.TypeOf.Kind is LLVMTypeKind.LLVMPointerTypeKind ? ValueTypeKind.IntArray : ValueTypeKind.Int, ValueScopeKind.Local));
         }
         
@@ -655,10 +735,14 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         if (!hasBreakRet) {
             if (funcRetTy.Kind is LLVMTypeKind.LLVMVoidTypeKind)
+            {
+                _symbolTable = _symbolTable.PrevTable!;
                 return _irBuilder.BuildRetVoid();
+            }
 
             _diagnostics.ReportSemanticWarning(new TextLocation(node.Position.Line, node.Position.Col),
                 $"Function {node.Name} has no return value.");
+            _symbolTable = _symbolTable.PrevTable!;
             return _irBuilder.BuildRet(LLVMValueRef.CreateConstInt(_context.Int32Type, 1, true));
         }
 
@@ -856,7 +940,10 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             }
             else
             {
-                
+                var initArrRef = Enumerable.Range(0, node.ArrayLength!.Value)
+                    .Select(_ => LLVMValueRef.CreateConstInt(_context.Int32Type, 0)).ToArray();
+                var constArr = LLVMValueRef.CreateConstArray(_context.Int32Type, initArrRef);
+                value.Initializer = constArr;
             }
         }
         else
