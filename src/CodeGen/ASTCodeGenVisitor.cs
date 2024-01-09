@@ -931,7 +931,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             : comp.Value;
      
         _irBuilder.BuildCondBr(
-            _irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntNE, compValue,
+            _irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, compValue,
                 LLVMValueRef.CreateConstInt(compValue.TypeOf, 1)), loopBasicBlock, loopEndBasicBlock);
 
         _irBuilder.PositionAtEnd(loopBasicBlock);
