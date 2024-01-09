@@ -69,7 +69,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         _targetMachine = _target.CreateTargetMachine(
             _triple, "generic", "",
             LLVMCodeGenOptLevel.LLVMCodeGenLevelNone,
-            LLVMRelocMode.LLVMRelocDefault,
+            LLVMRelocMode.LLVMRelocPIC,
             LLVMCodeModel.LLVMCodeModelDefault
         );
         
@@ -1048,7 +1048,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public async Task LinkToExeFile(string fileName, string outputFileName)
     {
-        using var linkProcess = System.Diagnostics.Process.Start("clang", [fileName, "-o", outputFileName, "-g3"]);
+        using var linkProcess = System.Diagnostics.Process.Start("clang", [fileName, "-o", outputFileName]);
         await linkProcess.WaitForExitAsync();
     }
 

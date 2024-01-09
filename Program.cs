@@ -41,7 +41,7 @@ internal sealed class Program
         outputFilePathOpt.AddValidator(result =>
         {
             var filePath = result.GetValueForOption(outputFilePathOpt);
-            if (string.IsNullOrWhiteSpace(filePath) || System.IO.File.Exists(filePath))
+            if (string.IsNullOrWhiteSpace(filePath))
             {
                 result.ErrorMessage = $"无效的输出文件路径: {filePath}";
             }
