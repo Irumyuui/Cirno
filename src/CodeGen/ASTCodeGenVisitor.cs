@@ -719,7 +719,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         var elseEntryBlock = func.AppendBasicBlock("if_else");
         // var mergeEntryBlock = func.AppendBasicBlock("if_merge");
 
-        _irBuilder.BuildCondBr(_irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntNE, ret,
+        _irBuilder.BuildCondBr(_irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, ret,
             LLVMValueRef.CreateConstInt(ret.TypeOf, 1)), thenEntryBlock, elseEntryBlock);
         
         // then
@@ -849,6 +849,15 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         if (_symbolTable.PrevTable is null)
         {
             value = _module.AddGlobal(valueTy, node.Name);
+
+            if (valueTy.Kind is LLVMTypeKind.LLVMIntegerTypeKind)
+            {
+                value.Initializer = LLVMValueRef.CreateConstInt(valueTy, 0);
+            }
+            else
+            {
+                
+            }
         }
         else
         {
@@ -859,7 +868,8 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
         _symbolTable.Add(node.Name,
             new ValueSymbol(new SyntaxToken(SyntaxKind.Identifier, node.Name, node.Position.Line, node.Position.Col),
-                node.Name, value, valueTy, node.Type is LiteralType.Int ? ValueTypeKind.Int : ValueTypeKind.IntArray, _symbolTable.PrevTable is null ? ValueScopeKind.Global : ValueScopeKind.Local));
+                node.Name, value, valueTy, node.Type is LiteralType.Int ? ValueTypeKind.Int : ValueTypeKind.IntArray,
+                _symbolTable.PrevTable is null ? ValueScopeKind.Global : ValueScopeKind.Local));
 
         System.Diagnostics.Debug.WriteLine("In VariableDeclarationNode");
         System.Diagnostics.Debug.WriteLine(_module);
@@ -947,7 +957,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public async Task LinkToExeFile(string fileName, string outputFileName)
     {
-        using var linkProcess = System.Diagnostics.Process.Start("clang", [fileName, "-o", outputFileName]);
+        using var linkProcess = System.Diagnostics.Process.Start("clang", [fileName, "-o", outputFileName, "-g3"]);
         await linkProcess.WaitForExitAsync();
     }
 

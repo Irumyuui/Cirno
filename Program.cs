@@ -27,25 +27,26 @@ using Cirno.Parser;
 //    "}",
 //];
 
-// string[] lines =
-// [
-//     "int gcd(int u, int v) {",
-//     "if (v == 0)", 
-//     "return gcd(v, u - u / v * v);",
-//     "else\n",
-//     "return u;",
-//
-//     "/* u-u/v*v == u mod v */",	
-//     "}",
-//
-//     "void main(void) {",
-//     "int x;",
-//     "int y;",
-//     "x = input();",
-//     "y = input();",
-//     "output(gcd(gcd, y));",
-//     "}",
-// ];
+string[] lines =
+[
+    "int level;",
+    "int gcd(int u, int v) {",
+    "  if (v == 0) {",
+    "    return u;",
+    "  } else {",
+    "    return gcd(v, u - u / v * v);",
+    "  }",
+    "}",
+    "",
+    "void main(void) {",
+    "  int u;",
+    "  int v;",
+    "  u = input();",
+    "  v = input();",
+    "  level = 0;",
+    "  output(gcd(u, v));",
+    "}",
+];
 
 // string[] lines =
 // [
@@ -106,15 +107,15 @@ using Cirno.Parser;
 //
 // ];
 
-string[] lines =
-[
-    "int foo(int x, int i) {",
-    " return x[i];",
-    "}",
-    "void main(void) {",
-    " foo(1, 2);",
-    "}"
-];
+// string[] lines =
+// [
+//     "int foo(int x, int i) {",
+//     " return x[i];",
+//     "}",
+//     "void main(void) {",
+//     " foo(1, 2);",
+//     "}"
+// ];
 
 var lexer = new Lexer(lines);
 var tokens = lexer.GetTokens();
@@ -146,7 +147,11 @@ visitor.Diagnostics.Dump(lines);
 
 visitor.Dump();
 
-visitor.Verify(out _);
+visitor.Verify(out var message);
+
+Console.WriteLine(message);
+
+await visitor.CompileIR2ExeFile("main.out");
 
 //DiagnosticList.PrintDiagnostics(visitor.Diagnostics);
 
