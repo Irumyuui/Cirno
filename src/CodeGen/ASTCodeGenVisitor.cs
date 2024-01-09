@@ -204,6 +204,10 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         }
 
         var arr = arrayValue!.Value;
+        
+        System.Diagnostics.Debug.WriteLine($"{node.Name} => {arr.TypeOf}");
+        System.Diagnostics.Debug.WriteLine($"{node.Name} => {arr.TypeOf.ElementType}");
+        
         if (arrayValue.ScopeKind is ValueScopeKind.Local)
         {
             arr = _irBuilder.BuildLoad2(arrayValue.Type, arr);
@@ -240,9 +244,6 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public LLVMValueRef? Visit(BinaryOperatorNode node)
     {
-        System.Diagnostics.Debug.WriteLine("In BinaryOperatorNode");
-        System.Diagnostics.Debug.WriteLine(_module);
-
         var leftResult = node.Left.Accept(this);
         var rightResult = node.Right!.Accept(this);
 
@@ -616,8 +617,6 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
     public LLVMValueRef? Visit(FunctionDeclarationNode node)
     {
         // defined a function
-        System.Diagnostics.Debug.WriteLine(_module);
-
         if (node.Parameters.Select(item => item.Name).Distinct().Count() < node.Parameters.Length)
         {
             _diagnostics.ReportSemanticError(new TextLocation(node.Position.Line, node.Position.Col),
@@ -811,30 +810,13 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             LLVMValueRef.CreateConstInt(ret.TypeOf, 1)), thenEntryBlock, elseEntryBlock);
         
         // then
-        System.Diagnostics.Debug.WriteLine("In if stmt => then");
-        System.Diagnostics.Debug.WriteLine(_module);
         _irBuilder.PositionAtEnd(thenEntryBlock);
         var result1 = node.Body[0].Accept(this);
-        
-        // if (node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock) is null)
-        // {
-        //     // node.Body[0].Accept(this, entryBasicBlock, exitBasicBlock);
-        //     _irBuilder.BuildBr(mergeEntryBlock);
-        // }
-
-        System.Diagnostics.Debug.WriteLine("In if stmt => else");
-        System.Diagnostics.Debug.WriteLine(_module);
         
         // else
         _irBuilder.PositionAtEnd(elseEntryBlock);
         var result2 = node.Body[1].Accept(this);
         
-        // if (node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock) is null)
-        // {
-        //     // node.Body[1].Accept(this, entryBasicBlock, exitBasicBlock);
-        //     _irBuilder.BuildBr(mergeEntryBlock);
-        // }
-
         if (result1 is not null && result2 is not null)
         {
             return result2;
@@ -849,9 +831,6 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
         _irBuilder.BuildBr(mergeEntryBlock);
         
         _irBuilder.PositionAtEnd(mergeEntryBlock);
-        
-        System.Diagnostics.Debug.WriteLine("In if stmt => merge");
-        System.Diagnostics.Debug.WriteLine(_module);
         
         return null;
     }
@@ -955,15 +934,10 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             value = _irBuilder.BuildAlloca(valueTy, node.Name);
         }
 
-        System.Diagnostics.Debug.WriteLine(value.TypeOf);
-
         _symbolTable.Add(node.Name,
             new ValueSymbol(new SyntaxToken(SyntaxKind.Identifier, node.Name, node.Position.Line, node.Position.Col),
                 node.Name, value, valueTy, node.Type is LiteralType.Int ? ValueTypeKind.Int : ValueTypeKind.IntArray,
                 _symbolTable.PrevTable is null ? ValueScopeKind.Global : ValueScopeKind.Local));
-
-        System.Diagnostics.Debug.WriteLine("In VariableDeclarationNode");
-        System.Diagnostics.Debug.WriteLine(_module);
 
         return null;
     }
@@ -998,8 +972,6 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
 
     public LLVMValueRef? Visit(WhileStatementNode node)
     {
-        System.Diagnostics.Debug.WriteLine(_module);
-
         // throw new NotImplementedException();
         
         var func = _irBuilder.InsertBlock.Parent;

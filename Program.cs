@@ -152,6 +152,10 @@ internal sealed class Program
         using var codeGenVisitor = new Cirno.CodeGen.CodeGenVisitor(moduleName, parser.Diagnostics);
         ast.Root.Accept(codeGenVisitor);
 
+        var llvmIrCode = codeGenVisitor.Module.ToString();
+
+        System.Diagnostics.Debug.WriteLine(llvmIrCode);
+        
         if (codeGenVisitor.Diagnostics.Count > 0)
         {
             codeGenVisitor.Diagnostics.Dump(lines);
@@ -165,7 +169,6 @@ internal sealed class Program
             System.Environment.Exit(-1);
         }
 
-        var llvmIrCode = codeGenVisitor.Module.ToString();
         
         if (isEmitIr)
         {

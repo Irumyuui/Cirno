@@ -16,7 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="test\" />
+    <ClCompile Include="test\error_1.c" />
+    <ClCompile Include="test\error_2.c" />
   </ItemGroup>
 
 </Project>
