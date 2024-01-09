@@ -789,7 +789,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             var yesDoBasicBlock = func.AppendBasicBlock("if_then");
             var noDoBasicBlock = func.AppendBasicBlock("if_not");
 
-            _irBuilder.BuildCondBr(_irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntNE, ret,
+            _irBuilder.BuildCondBr(_irBuilder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, ret,
                 LLVMValueRef.CreateConstInt(ret.TypeOf, 1)), yesDoBasicBlock, noDoBasicBlock);
             
             _irBuilder.PositionAtEnd(yesDoBasicBlock);
