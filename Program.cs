@@ -27,25 +27,25 @@ using Cirno.Parser;
 //    "}",
 //];
 
-string[] lines =
-[
-    "int gcd(int u, int v) {",
-    "if (v == 0)", 
-    "return gcd(v, u - u / v * v);",
-    "else\n",
-    "return u;",
-
-    "/* u-u/v*v == u mod v */",	
-    "}",
-
-    "void main(void) {",
-    "int x;",
-    "int y;",
-    "x = input();",
-    "y = input();",
-    "output(gcd(gcd, y));",
-    "}",
-];
+// string[] lines =
+// [
+//     "int gcd(int u, int v) {",
+//     "if (v == 0)", 
+//     "return gcd(v, u - u / v * v);",
+//     "else\n",
+//     "return u;",
+//
+//     "/* u-u/v*v == u mod v */",	
+//     "}",
+//
+//     "void main(void) {",
+//     "int x;",
+//     "int y;",
+//     "x = input();",
+//     "y = input();",
+//     "output(gcd(gcd, y));",
+//     "}",
+// ];
 
 // string[] lines =
 // [
@@ -106,15 +106,15 @@ string[] lines =
 //
 // ];
 
-// string[] lines =
-// [
-//     "int foo(int x, int i) {",
-//     " return x[i];",
-//     "}",
-//     "void main(void) {",
-//     " foo(1, 2);",
-//     "}"
-// ];
+string[] lines =
+[
+    "int foo(int x, int i) {",
+    " return x[i];",
+    "}",
+    "void main(void) {",
+    " foo(1, 2);",
+    "}"
+];
 
 var lexer = new Lexer(lines);
 var tokens = lexer.GetTokens();

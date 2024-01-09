@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics.SymbolStore;
 using Cirno.Lexer;
 using Cirno.SyntaxSymbol;
+using Microsoft.VisualBasic.FileIO;
 
 namespace Cirno.DiagnosticTools;
 
@@ -68,8 +69,10 @@ public readonly record struct Diagnostic(
         Console.WriteLine($"{text[Location.Line]}");
 
         Console.ForegroundColor = ConsoleColor.Gray;
-        Console.WriteLine($"{tabBlock}| ");
-        
+        Console.Write($"{tabBlock}| ");
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine(new string(' ', Location.Col) + "^");
         Console.ResetColor();
     }
 }
