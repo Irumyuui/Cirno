@@ -54,7 +54,7 @@ string[] lines =
 //
 //     "int x[10];",
 // "",
-//     "int minloc(int a[], int low, int high)",
+//     "int minloc(int a, int low, int high)",
 //     "{",
 //     "int i; int x; int k;",
 //     "k = low;",
@@ -73,7 +73,7 @@ string[] lines =
 //     "return k;",
 //     "}",
 // "",
-//     "void sort(int a[], int low, int high)",
+//     "void sort(int a, int low, int high)",
 //     "{",
 //     "int i; int k;",
 //     "i = low;",
@@ -106,6 +106,16 @@ string[] lines =
 //
 // ];
 
+// string[] lines =
+// [
+//     "int foo(int x, int i) {",
+//     " return x[i];",
+//     "}",
+//     "void main(void) {",
+//     " foo(1, 2);",
+//     "}"
+// ];
+
 var lexer = new Lexer(lines);
 var tokens = lexer.GetTokens();
 if (lexer.Diagnostics.Count > 0)
@@ -127,7 +137,7 @@ if (parser.Diagnostics.Count > 0)
 var astTree = new AST(exprTree);
 astTree.Dump();
 
-var visitor = new CodeGenVisitor("main", parser.Diagnostics);
+using var visitor = new CodeGenVisitor("main", parser.Diagnostics);
 astTree.Root.Accept(visitor);
 
 // PrintDiagnostics(visitor.Diagnostics);

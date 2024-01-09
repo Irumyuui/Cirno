@@ -188,7 +188,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return null;
         }
         
-        if (arrayValue?.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind)
+        if (arrayValue?.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind || arrayValue.TypeKind is not ValueTypeKind.IntArray)
         {
             _diagnostics.ReportNotExpectType(new TextLocation(node.Position.Line, node.Position.Col),
                 arrayValue?.Name ?? "", ValueTypeKind.IntArray, arrayValue?.TypeKind ?? ValueTypeKind.Void);
@@ -789,7 +789,7 @@ public sealed class CodeGenVisitor : ICodeGenVisitor, IDisposable
             return null;
         }
 
-        if (result.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind || result.TypeKind is not ValueTypeKind.Int) {
+        if (result.Value.TypeOf.Kind is not LLVMTypeKind.LLVMPointerTypeKind) {
             _diagnostics.ReportNotLeftValueError(new TextLocation(node.Position.Line, node.Position.Col), node.Name);
             return null;
         }
