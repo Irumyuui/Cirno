@@ -18,6 +18,8 @@
   <ItemGroup>
     <ClCompile Include="test\error_1.c" />
     <ClCompile Include="test\error_2.c" />
+    <ClCompile Include="test\parse_err.c" />
+    <ClCompile Include="test\unkown_token.c" />
   </ItemGroup>
 
 </Project>
