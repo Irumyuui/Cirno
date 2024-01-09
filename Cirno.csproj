@@ -5,12 +5,17 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="libLLVM" Version="16.0.6" />
     <PackageReference Include="libLLVM.runtime.win-x64" Version="16.0.6" />
     <PackageReference Include="LLVMSharp.Interop" Version="16.0.0" />
+    <PackageReference Include="NuGet.CommandLine" Version="6.8.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
