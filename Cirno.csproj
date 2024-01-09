@@ -12,10 +12,7 @@
     <PackageReference Include="libLLVM" Version="16.0.6" />
     <PackageReference Include="libLLVM.runtime.win-x64" Version="16.0.6" />
     <PackageReference Include="LLVMSharp.Interop" Version="16.0.0" />
-    <PackageReference Include="NuGet.CommandLine" Version="6.8.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 
   <ItemGroup>

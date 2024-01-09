@@ -1,263 +1,178 @@
 ﻿using System;
-using Cirno.AbstractSyntaxTree;
-using Cirno.CodeGen;
-using Cirno.DiagnosticTools;
-using Cirno.Lexer;
-using Cirno.Parser;
+using System.CommandLine;
+using System.Linq;
+using System.Threading.Tasks;
 
-//string[] lines =
-//[
-//    "int x[1];",
-//     "int minloc(int a[], int low, int high) {",
-//     "    int i; int k; int x;",
-//     "    k = low; x = a[low];",
-//     "    while (i < high) {",
-//     "           int xx;",
-//     "        if (a[i] < x) {",
-//     "            x = a[i]; k = i;",
-//     "        } else {",
-//    "           k = 2;",
-//    "         }",
-//     "        i = i + 1 * 2;",
-//     "    }",
-//     "    return k;",
-//     "}",
-//    "int main(void) {",
-//    "  return minloc(x, low, high);",
-//    "}",
-//];
+namespace Cirno;
 
-// string[] lines =
-// [
-//     "int level;",
-//     "int gcd(int u, int v) {",
-//     "  if (v == 0) {",
-//     "    return u;",
-//     "  } else {",
-//     "    return gcd(v, u - u / v * v);",
-//     "  }",
-//     "}",
-//     "",
-//     "void main(void) {",
-//     "  int u;",
-//     "  int v;",
-//     "  u = input();",
-//     "  v = input();",
-//     "  level = 0;",
-//     "  output(gcd(u, v));",
-//     "}",
-// ];
-
-string[] lines =
-[
-    "/* A program to perform selection sort on a 10",
- "element array. */",
-    "int x[10];",
-    
-    "int minloc(int a[], int low, int high) {",
-    "  int i; int x; int k;",
-    // "  int tt;"
-    "  k = low;",
-    "  x = a[low];",
-    "  i = low + 1;",
-    // "    output(5555555);",
-    // "    output(k);",
-    // "    output(x);",
-    // "    output(i);",
-    // "    output(5555555);",
-    "  while (i < high) {",
-    "    if (a[i] < x) {",
-    "      x = a[i];",
-    "      k = i;",
-    "    }",
-    "    i = i + 1;",
-    "  }",
-    // "    output(2222222);",
-    // "    tt = 0;",
-    // "    while (tt < 10) {",
-    // "      output(a[tt]);",
-    // "      tt = tt + 1;",
-    // "    }",
-    // "    output(2222222);",
-    // "    output(3333333);",
-    // "    output(k);",
-    // "    output(3333333);",
-    "  return k;",
-    "}",
-    "",
-    "void sort(int a[], int low, int high) {",
-    "  int i; int k;",
-    "  i = low;",
-    "  while (i < high - 1) {",
-    "    int t;",
-    // "    int tt;",
-    "    k = minloc(a, i, high);",
-    "    t = a[k];",
-    "    a[k] = a[i];",
-    "    a[i] = t;",
-    "    i = i + 1;",
-    // "    output(1111111);",
-    // "    tt = 0;",
-    // "    while (tt < 10) {",
-    // "      output(a[tt]);",
-    // "      tt = tt + 1;",
-    // "    }",
-    // "    output(1111111);",
-    "  }",
-    "}",
-    "",
-    "int main(void) {",
-    "  int i;",
-    "  i = 0;",
-    "  while (i < 10) {",
-    "    x[i] = input();",
-    "    i = i + 1;",
-    "  }",
-    "  sort(x, 0, 10);",
-    "  i = 0;",
-    "  while (i < 10) {",
-    "    output(x[i]);",
-    "    i = i + 1;",
-    "  }",
-    "  return 0;",
-    "}"
-];
-
-// string[] lines =
-// [
-//     "int x[10];",
-//     "void reverse(int a[], int len) {",
-//     "   int l; int r;",
-//     "   l = 0; r = len - 1;",
-//     "  while (l < r) {",
-//     "    int t;",
-//     "    t = a[l];",
-//     "    a[l] = a[r];",
-//     "    a[r] = t;",
-//     "    l = l + 1; r = r - 1;",
-//     "  }",
-//     "}",
-//     "",
-//     "void main(void) {",
-//     "  int i;",
-//     "  i = 0;",
-//     "  while (i < 10) {",
-//     "    x[i] = input();",
-//     "    i = i + 1;",
-//     "  }",
-//     "  reverse(x, 10);",
-//     "  i = 0;",
-//     "  while (i < 10) {",
-//     "    output(x[i]);",
-//     "    i = i + 1;",
-//     "  }",
-//     "}"
-// ];
-
-// string[] lines =
-// [
-//     "int foo(int x, int i) {",
-//     " return x[i];",
-//     "}",
-//     "void main(void) {",
-//     " foo(1, 2);",
-//     "}"
-// ];
-
-foreach (var line in lines)
+internal sealed class Program
 {
-    Console.WriteLine(line);
-}
-
-var lexer = new Lexer(lines);
-var tokens = lexer.GetTokens();
-if (lexer.Diagnostics.Count > 0)
-{
-    PrintDiagnostics(lexer.Diagnostics);
-    return;
-}
-
-var parser = new Parser(tokens, lexer.Diagnostics);
-var exprTree = parser.Parse();
-exprTree.Dump();
-
-if (parser.Diagnostics.Count > 0)
-{
-    PrintDiagnostics(parser.Diagnostics);
-    return;
-}
-
-var astTree = new AST(exprTree);
-astTree.Dump();
-
-using var visitor = new CodeGenVisitor("main", parser.Diagnostics);
-astTree.Root.Accept(visitor);
-
-// PrintDiagnostics(visitor.Diagnostics);
-
-visitor.Diagnostics.Dump(lines);
-
-visitor.Dump();
-
-visitor.Verify(out var message);
-
-Console.WriteLine(message);
-
-await visitor.CompileIR2ExeFile("main.out");
-
-//DiagnosticList.PrintDiagnostics(visitor.Diagnostics);
-
-
-
-return;
-
-void PrintDiagnostics(DiagnosticList diagnosticList)
-{
-    foreach (var item in diagnosticList)
+    internal static async Task<int> Main(string[] args)
     {
-        Console.WriteLine(item);
+        var rootCommand = new System.CommandLine.RootCommand(
+            "一个基于LLVMSharp实现的C-编译器前端"
+        );
+
+        var inputFilePathOpt 
+            = new System.CommandLine.Option<string?>(
+                name: "--file", description: "输入的c-文件"
+            )
+            {
+                IsRequired = true
+            };
+        inputFilePathOpt.AddValidator(result =>
+        {
+            var filePath = result.GetValueForOption(inputFilePathOpt);
+            if (!System.IO.File.Exists(filePath))
+            {
+                result.ErrorMessage = $"无效的输入文件路径: {filePath}";
+            }
+        });
+        rootCommand.AddOption(inputFilePathOpt);
+        // rootCommand.SetHandler(file => );
+
+        var outputFilePathOpt
+            = new System.CommandLine.Option<string?>(
+                name: "--output", description: "输出文件地址"
+            )
+            {
+                IsRequired = true
+            };
+        outputFilePathOpt.AddValidator(result =>
+        {
+            var filePath = result.GetValueForOption(outputFilePathOpt);
+            if (string.IsNullOrWhiteSpace(filePath) || System.IO.File.Exists(filePath))
+            {
+                result.ErrorMessage = $"无效的输出文件路径: {filePath}";
+            }
+        });
+        rootCommand.AddOption(outputFilePathOpt);
+
+        var emit2IrOpt = new System.CommandLine.Option<bool>(
+            name: "--emit-llvm",
+            description: "输出LLVM IR"
+        )
+        {
+            IsRequired = false
+        };
+        rootCommand.AddOption(emit2IrOpt);
+
+        var dumpExprOpt = new System.CommandLine.Option<bool>(
+            name: "--dump-expr",
+            description: "输出语法树"
+        )
+        {
+            IsRequired = false
+        };
+        rootCommand.AddOption(dumpExprOpt);
+        
+        var dumpAstOpt = new System.CommandLine.Option<bool>(
+            name: "--dump-ast",
+            description: "输出抽象语法树"
+        )
+        {
+            IsRequired = false
+        };
+        rootCommand.AddOption(dumpAstOpt);
+
+        var dumpTokensOpt = new System.CommandLine.Option<bool>(
+            name: "--dump-tokens",
+            description: "输出记号流"
+        )
+        {
+            IsRequired = false
+        };
+        rootCommand.AddOption(dumpTokensOpt);
+
+        rootCommand.SetHandler(async (inputFilePath, outputFilePath, isEmitIr, isDumpExpr, isDumpAst, isDumpTokens) =>
+            await StartSolution(inputFilePath!, outputFilePath!, isEmitIr, isDumpExpr, isDumpAst, isDumpTokens),
+            inputFilePathOpt, 
+            outputFilePathOpt, 
+            emit2IrOpt,
+            dumpExprOpt,
+            dumpAstOpt,
+            dumpTokensOpt
+        );
+        
+        return await rootCommand.InvokeAsync(args);
+    }
+
+    internal static string[] ReadFile(string file)
+    {
+        return System.IO.File.ReadLines(file).Select(line => $"{line} ").ToArray();
+    }
+
+    internal static async Task StartSolution(string inputFilePath, string outputFilePath, bool isEmitIr, bool isDumpExpr, bool isDumpAst, bool isDumpTokens) 
+    {
+        var lines = ReadFile(inputFilePath);
+
+        var lexer = new Cirno.Lexer.Lexer(lines);
+        var tokens = lexer.GetTokens();
+
+        if (isDumpTokens)
+        {
+            Console.WriteLine("Dump tokens.");
+            foreach (var token in tokens)
+            {
+                Console.WriteLine(token);
+            }
+        }
+        
+        if (lexer.Diagnostics.Count > 0)
+        {
+            lexer.Diagnostics.Dump(lines);
+            System.Environment.Exit(-1);
+        }
+
+        var parser = new Cirno.Parser.Parser(tokens, lexer.Diagnostics);
+        var exprTree = parser.Parse();
+
+        if (isDumpExpr)
+        {
+            Console.WriteLine("Dump expression tree.");
+            exprTree.Dump();
+        }
+        
+        if (parser.Diagnostics.Count > 0)
+        {
+            parser.Diagnostics.Dump(lines);
+            System.Environment.Exit(-1);
+        }
+
+        var ast = new Cirno.AbstractSyntaxTree.AST(exprTree);
+
+        if (isDumpAst)
+        {
+            Console.WriteLine("Dump ast.");
+            ast.Dump();
+        }
+
+        var moduleName = System.IO.Path.GetFileNameWithoutExtension(inputFilePath);
+        
+        using var codeGenVisitor = new Cirno.CodeGen.CodeGenVisitor(moduleName, parser.Diagnostics);
+        ast.Root.Accept(codeGenVisitor);
+
+        if (codeGenVisitor.Diagnostics.Count > 0)
+        {
+            codeGenVisitor.Diagnostics.Dump(lines);
+            System.Environment.Exit(-1);
+        }
+
+        if (!codeGenVisitor.Verify(out _))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Error in code gen.");
+            System.Environment.Exit(-1);
+        }
+
+        var llvmIrCode = codeGenVisitor.Module.ToString();
+        
+        if (isEmitIr)
+        {
+            await System.IO.File.WriteAllTextAsync(outputFilePath, llvmIrCode);
+            return;
+        }
+
+        await codeGenVisitor.CompileIR2ExeFile(outputFilePath);
     }
 }
-
-// string[] lines = [
-//     // "int main(void) {",
-//     // " int a; int b[10]; int c;",
-//     // " a = 10;",
-//     // // " b = a + 20;",
-//     // " c = 1 + (10 == 2);",
-//     // " return 0;",
-//     // "}",
-//     // "/*adadw*/",
-//     // "int x[10];",
-//     // "int minloc(int a[], int low, int high) {",
-//     // "int i; int x; int k;",
-//     // "k = low;",
-//     // "x = a[low];",
-//     // "while (i < high) {",
-//     // "if (a[i] < x) {x = a[i]; k = i;} i = i + 1;",
-//     // "}",
-//     // "return k;",
-//     // "}"
-//     "int x[];",
-//     "int minloc(int a[], int low, int high) {",
-//     "    int i; int k;",
-//     "    k = low; x = a[low];",
-//     "    while (i < high) {",
-//     "           int xx;",
-//     "        if (a[i] < x) {",
-//     "            x = a[i]; k = i;",
-//     "        }",
-//     "        i = i + 1;",
-//     "    }",
-//     "    return k;",
-//     "}"
-// ];
-//
-// var tree = new ExpressionTree(lines);
-// tree.Dump();
-//
-// var astTree = new AST(tree);
-//
-// ASTNode.Dump(astTree.Root);
-//
-// DiagnosticHelper.PrintDiagnostics();
